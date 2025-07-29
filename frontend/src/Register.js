@@ -38,7 +38,7 @@ function Register() {
       <input name="password" type="password" placeholder="Mot de passe" onChange={handleChange} />
       <input name="password_confirmation" type="password" placeholder="Confirmer mot de passe" onChange={handleChange} />
       <button type="submit">S'inscrire</button>
-       <button type="submit">S'inscrire</button>
+      
     </form>
   );
 }
