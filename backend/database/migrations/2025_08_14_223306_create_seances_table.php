@@ -13,6 +13,16 @@ return new class extends Migration
     {
         Schema::create('seances', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('uae_id')->constrained('ueas');
+            $table->foreignId('enseignant_id')->constrained('users');
+            $table->string('salle', 20)->nullable();
+            $table->date('date');
+            $table->time('heure_debut');
+            $table->time('heure_fin');
+            $table->enum('duree', ['4h', '8h']);
+            $table->enum('type', ['presentiel', 'en_ligne'])->default('presentiel');
+            $table->text('lien_reunion')->nullable();
+            $table->enum('statut', ['programmee', 'effectuee', 'annulee'])->default('programmee');
             $table->timestamps();
         });
     }

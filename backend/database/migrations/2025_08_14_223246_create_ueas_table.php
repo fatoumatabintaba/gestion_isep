@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('ueas', function (Blueprint $table) {
             $table->id();
+            $table->string('code', 10)->unique();
+            $table->string('nom');
+            $table->tinyInteger('annee'); // 1 ou 2
+            
             $table->timestamps();
         });
     }

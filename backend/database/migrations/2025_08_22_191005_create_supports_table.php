@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('devoirs', function (Blueprint $table) {
+        Schema::create('supports', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('uae_id')->constrained('ueas');
+            $table->foreignId('enseignant_id')->constrained('users');
             $table->string('titre');
             $table->text('description')->nullable();
-            $table->foreignId('uae_id')->constrained('ueas');
-            $table->foreignId('enseignant_id')->constrained('users'); // User avec role=enseignant
-            $table->dateTime('date_limite');
+            $table->enum('type', ['cours', 'tp', 'td', 'examen', 'projet']);
+            $table->string('fichier'); // chemin vers le fichier
             $table->timestamps();
         });
     }
@@ -27,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('devoirs');
+        Schema::dropIfExists('supports');
     }
 };

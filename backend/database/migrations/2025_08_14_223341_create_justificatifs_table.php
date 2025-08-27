@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('justificatifs', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('apprenant_id')->constrained('apprenants');
+            $table->string('fichier'); // Chemin du fichier (PDF, JPG)
+            $table->text('motif')->nullable();
+            $table->enum('statut', ['en_attente', 'valide', 'refuse'])->default('en_attente');
+            $table->foreignId('valideur_id')->nullable()->constrained('users'); // Coordinateur ou assistant
+            $table->foreignId('seance_id')->constrained('seances');
             $table->timestamps();
         });
     }

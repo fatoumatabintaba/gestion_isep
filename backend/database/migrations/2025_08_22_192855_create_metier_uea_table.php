@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('presences', function (Blueprint $table) {
+        Schema::create('metier_uea', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('seance_id')->constrained('seances');
-            $table->foreignId('apprenant_id')->constrained('apprenants');
-            $table->enum('statut', ['P', 'A', '½'])->default('P');
-            $table->unique(['seance_id', 'apprenant_id']);
+            $table->foreignId('metier_id')->constrained('metiers')->onDelete('cascade');
+            $table->foreignId('uea_id')->constrained('ueas')->onDelete('cascade');
+            $table->unique(['metier_id', 'uea_id']); // Évite les doublons
             $table->timestamps();
         });
     }
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('presences');
+        Schema::dropIfExists('metier_uea');
     }
 };
