@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Models;
-
+use App\Notifications\CoursEnLigneProgramme;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Uea; // Optionnel, si utilisé
@@ -10,6 +10,7 @@ use App\Models\Metier;
 use App\Models\Presence;
 use App\Models\Justificatif;
 use App\Models\RenduDevoir;
+use Illuminate\Notifications\Notifiable;
 
 class Apprenant extends Model
 {

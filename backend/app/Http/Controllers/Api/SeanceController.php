@@ -45,6 +45,8 @@ class SeanceController extends Controller
             'type', 'lien_reunion', 'statut'
         ]));
 
+        Notification::send($apprenants, new CoursEnLigneProgramme($seance));
+
         return response()->json([
             'message' => 'Séance créée avec succès',
             'seance' => $seance->load('uea', 'enseignant')
@@ -80,4 +82,6 @@ class SeanceController extends Controller
     {
         //
     }
+
+    
 }

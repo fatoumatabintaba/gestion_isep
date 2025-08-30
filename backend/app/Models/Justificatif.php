@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Apprenant;
+use App\Models\Seance;
 
 class Justificatif extends Model
 {
     protected $fillable = ['apprenant_id', 'fichier', 'motif', 'statut', 'valideur_id', 'seance_id'];
+
+
 
     // Un justificatif appartient à un apprenant
     public function apprenant()
@@ -26,4 +30,6 @@ class Justificatif extends Model
     {
         return $this->belongsTo(Seance::class);
     }
+
+
 }
