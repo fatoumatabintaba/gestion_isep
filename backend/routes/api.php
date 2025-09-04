@@ -109,4 +109,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
 });
+
+
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/ueas/{ueaId}/rapport-absences', [UeaController::class, 'rapportAbsences']);
+    Route::get('/ueas/{ueaId}/rapport-absences.pdf', [UeaController::class, 'rapportAbsencesPdf']);
+});
 });

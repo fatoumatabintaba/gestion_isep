@@ -16,7 +16,7 @@ class Devoir extends Model
     // Un devoir appartient à une UEA
     public function uea()
     {
-        return $this->belongsTo(Uea::class);
+        return $this->belongsTo(\App\Models\Uea::class);
     }
 
     // Un devoir est créé par un enseignant (User)

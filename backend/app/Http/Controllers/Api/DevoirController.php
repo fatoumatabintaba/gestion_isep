@@ -44,6 +44,14 @@ class DevoirController extends Controller
         }
 
         $devoir = Devoir::create($data);
+       // Récupère les apprenants de l'UEA
+$metierId = $devoir->uea->metiers->first()->id;
+$apprenants = App\Models\Apprenant::where('metier_id', $metierId)->get();
+
+// Envoie la notification à chaque apprenant
+foreach ($apprenants as $apprenant) {
+    $apprenant->user->notify(new DevoirCree($devoir));
+}
 
         return response()->json([
             'message' => 'Devoir créé avec succès',
@@ -76,6 +84,8 @@ class DevoirController extends Controller
                 'retard' => $retard
             ]
         );
+
+        $soumission->apprenant->user->notify(new DevoirCorrige($soumission));
 
         return response()->json([
             'message' => $retard ? 'Devoir soumis en retard' : 'Devoir soumis à temps',

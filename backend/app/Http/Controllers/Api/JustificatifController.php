@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Justificatif;
+
 
 
 class JustificatifController extends Controller
@@ -28,6 +28,13 @@ class JustificatifController extends Controller
         }
 
         $justificatif = Justificatif::create($data);
+        // Récupère tous les coordinateurs
+        $coordinateurs = App\Models\User::where('role', 'coordinateur')->get();
+
+        // Envoie à chaque coordinateur
+        foreach ($coordinateurs as $coordinateur) {
+            $coordinateur->notify(new JustificatifSoumis($justificatif));
+        }
 
         return response()->json([
             'message' => 'Justificatif soumis avec succès',
@@ -61,15 +68,22 @@ public function updateStatut(Request $request, $id)
     $justificatif = Justificatif::findOrFail($id);
 
     $justificatif->update([
-        'statut' => $request->statut,
+        'statut' => 'valide',
+        'valideur_id' => auth()->id(),
         'remarque' => $request->remarque,
-        'valideur_id' => $request->user()->id
+        // 'statut' => $request->statut,
+        // 'remarque' => $request->remarque,
+        // 'valideur_id' => $request->user()->id
     ]);
 
-    return response()->json([
-        'message' => 'Statut mis à jour',
-        'justificatif' => $justificatif->load('apprenant', 'valideur')
-    ]);
+    // Notifie l'apprenant
+$justificatif->apprenant->user->notify(new JustificatifValide($justificatif));
+
+return response()->json(['message' => 'Justificatif validé et notifié', 'justificatif' => $justificatif]);
+    // return response()->json([
+    //     'message' => 'Statut mis à jour',
+    //     'justificatif' => $justificatif->load('apprenant', 'valideur')
+    // ]);
 }
     }
 

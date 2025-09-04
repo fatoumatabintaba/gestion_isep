@@ -52,11 +52,11 @@ class DashboardController extends Controller
                 ];
                 break;
 
-            case 'coordinateur':
-                $justificatifsEnAttente = Justificatif::where('statut', 'en_attente')->count();
+                    case 'coordinateur':
+                $enAttente = Justificatif::where('statut', 'en_attente')->count();
 
                 $data = [
-                    'justificatifs_en_attente' => $justificatifsEn_attente
+                    'justificatifs_en_attente' => $enAttente
                 ];
                 break;
 

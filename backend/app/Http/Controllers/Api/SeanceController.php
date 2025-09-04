@@ -45,7 +45,13 @@ class SeanceController extends Controller
             'type', 'lien_reunion', 'statut'
         ]));
 
-        Notification::send($apprenants, new CoursEnLigneProgramme($seance));
+            // Envoyer à tous les apprenants concernés
+            $metierId = $seance->uae->metiers->first()->id;
+            $apprenants = Apprenant::where('metier_id', $metierId)->get();
+
+            foreach ($apprenants as $apprenant) {
+                $apprenant->user->notify(new CoursEnLigneProgramme($seance));
+            }
 
         return response()->json([
             'message' => 'Séance créée avec succès',
@@ -83,5 +89,5 @@ class SeanceController extends Controller
         //
     }
 
-    
+
 }

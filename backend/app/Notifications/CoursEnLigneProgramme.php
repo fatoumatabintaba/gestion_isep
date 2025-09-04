@@ -35,15 +35,25 @@ class CoursEnLigneProgramme extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-        ->subject("🌐 Cours en ligne programmé : {$this->seance->uae->nom}")
+        $ueaNom = $this->seance->uae ? $this->seance->uae->nom : 'Une UEA';
+
+       $mail = (new MailMessage)
+        ->subject("🌐 Cours en ligne programmé : {$ueaNom}")
         ->greeting("Bonjour {$notifiable->prenom},")
         ->line("Un nouveau cours en ligne vient d'être programmé.")
-        ->line("**UEA :** {$this->seance->uae->nom}")
-        ->line("**Date :** {$this->seance->date} à {$this->seance->heure_debut}")
-        ->action('Rejoindre le cours', $this->seance->lien_reunion)
-        ->salutation("À bientôt !");
+        ->line("**UEA :** {$ueaNom}")
+        ->line("**Date :** {$this->seance->date} à {$this->seance->heure_debut}");
+
+    if ($this->seance->lien_reunion) {
+        $mail->action('Rejoindre le cours', $this->seance->lien_reunion);
+    } else {
+        $mail->line('Le lien de réunion sera partagé prochainement.');
     }
+
+    $mail->salutation("À bientôt !");
+
+    return $mail;
+}
 
     /**
      * Get the array representation of the notification.
@@ -53,7 +63,11 @@ class CoursEnLigneProgramme extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            //
-        ];
+            'titre' => "Cours en ligne programmé : {$this->seance->uae?->nom}",
+            'message' => "Un nouveau cours en ligne est programmé le {$this->seance->date} à {$this->seance->heure_debut}.",
+            'lien' => $this->seance->lien_reunion,
+            'type' => 'cours_en_ligne',
+            'seance_id' => $this->seance->id,
+    ];
     }
 }
