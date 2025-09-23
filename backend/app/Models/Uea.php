@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Uea extends Model
 {
+    protected $table = 'ueas'; // ✅ Bon nom
     protected $fillable = ['code', 'nom', 'annee'];
+
 
     // une UEA appartient à plusieurs métiers
     public function metiers()
@@ -30,4 +32,6 @@ class Uea extends Model
     public function devoirs(){
         return $this->hasMany(Devoir::class);
     }
+
+
 }

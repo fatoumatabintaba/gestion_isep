@@ -19,13 +19,20 @@ class DashboardController extends Controller
             case 'apprenant':
                 $apprenant = $user->apprenant;
 
+                if (!$apprenant) {
+                    return response()->json([
+                        'message' => 'Profil apprenant non trouvé. Contactez l\'administrateur.',
+                    ], 404);
+                }
+
+
                 $absences = Presence::whereHas('seance', function ($q) {
                     $q->where('date', '<=', now());
                 })->where('apprenant_id', $apprenant->id)->where('statut', 'A')->count();
 
                 $justifies = Justificatif::where('apprenant_id', $apprenant->id)->count();
                 $enAttente = Justificatif::where('apprenant_id', $apprenant->id)->where('statut', 'en_attente')->count();
-                 $devoirsAFaire = Soumission::where('apprenant_id', $apprenant->id)
+                $devoirsAFaire = Soumission::where('apprenant_id', $apprenant->id)
                     ->doesntHave('devoir')
                     ->orWhereNull('fichier_rendu')
                     ->count();

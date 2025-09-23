@@ -4,20 +4,29 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use \App\Models\Uea;
+use App\Models\RenduDevoir;
 
 class Devoir extends Model
 {
-    protected $fillable = ['titre', 'description', 'uae_id', 'enseignant_id', 'date_limite'];
+    use HasFactory;
+    protected $fillable = ['titre', 'description', 'uea_id', 'enseignant_id', 'date_limite','coefficient',
+    'fichier_consigne','ouverte','seance_id'];
 
     protected $casts = [
         'date_limite' => 'datetime'
     ];
+    // Dans le modèle
+    protected $with = ['uea', 'enseignant'];
 
     // Un devoir appartient à une UEA
+
+    // Dans Devoir.php
     public function uea()
     {
-        return $this->belongsTo(\App\Models\Uea::class);
+        return $this->belongsTo(Uea::class, 'uea_id');
     }
+
 
     // Un devoir est créé par un enseignant (User)
     public function enseignant()
@@ -30,4 +39,6 @@ class Devoir extends Model
     {
         return $this->hasMany(RenduDevoir::class);
     }
+
+
 }

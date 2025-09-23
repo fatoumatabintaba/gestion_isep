@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Seance extends Model
 {
+    use HasFactory;
     protected $fillable = ['uea_id', 'enseignant_id', 'salle', 'date',
         'heure_debut', 'heure_fin', 'duree',
         'type', 'lien_reunion', 'statut'];

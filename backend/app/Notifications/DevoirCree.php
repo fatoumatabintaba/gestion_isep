@@ -4,10 +4,11 @@ namespace App\Notifications;
 
 use App\Models\Devoir;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue; // ✅ Import obligatoire
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class DevoirCree extends Notification
+class DevoirCree extends Notification implements ShouldQueue // ✅ Implémentation ajoutée
 {
     use Queueable;
 
@@ -23,25 +24,25 @@ class DevoirCree extends Notification
         return ['mail'];
     }
 
-public function toMail($notifiable): MailMessage
-{
-    $ueaNom = $this->devoir->uea ? $this->devoir->uea->nom : 'Une UEA';
-    $description = $this->devoir->description ?: 'Aucune description';
-    $dateLimite = $this->devoir->date_limite ? $this->devoir->date_limite->format('d/m/Y à H:i') : 'Non définie';
+    public function toMail($notifiable): MailMessage
+    {
+        $ueaNom = $this->devoir->uea ? $this->devoir->uea->nom : 'Une UEA';
+        $description = $this->devoir->description ?: 'Aucune description';
+        $dateLimite = $this->devoir->date_limite ? $this->devoir->date_limite->format('d/m/Y à H:i') : 'Non définie';
 
-    return (new MailMessage)
-        ->subject("📝 Nouveau devoir : {$ueaNom}")
-        ->greeting("Bonjour {$notifiable->name},")
-        ->line("Un nouveau devoir a été publié pour l’UEA **{$ueaNom}**.")
-        ->line("**Titre :** {$this->devoir->titre}")
-        ->line("**Description :** {$description}")
-        ->line("**Date limite :** {$dateLimite}")
-        ->line("**Coefficient :** {$this->devoir->coefficient}")
-        ->action('Voir le devoir', url('/app/devoirs/' . $this->devoir->id))
-        ->line('Merci de le rendre avant la date limite.')
-        ->line('Cordialement,')
-        ->line('L’équipe pédagogique');
-}
+        return (new MailMessage)
+            ->subject("📝 Nouveau devoir : {$ueaNom}")
+            ->greeting("Bonjour {$notifiable->name},")
+            ->line("Un nouveau devoir a été publié pour l’UEA **{$ueaNom}**.")
+            ->line("**Titre :** {$this->devoir->titre}")
+            ->line("**Description :** {$description}")
+            ->line("**Date limite :** {$dateLimite}")
+            ->line("**Coefficient :** {$this->devoir->coefficient}")
+            ->action('Voir le devoir', url('/app/devoirs/' . $this->devoir->id))
+            ->line('Merci de le rendre avant la date limite.')
+            ->line('Cordialement,')
+            ->line('L’équipe pédagogique');
+    }
 
     public function toArray($notifiable)
     {

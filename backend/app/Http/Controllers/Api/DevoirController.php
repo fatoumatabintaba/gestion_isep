@@ -1,10 +1,18 @@
 <?php
 
 namespace App\Http\Controllers\Api;
+
 use App\Models\Devoir;
 use App\Models\Soumission;
-use App\Http\Controllers\Controller;
+use App\Models\Apprenant;
+use App\Models\Uea;
+use App\Models\User;
+use App\Notifications\DevoirCree;
+use App\Notifications\DevoirCorrige;
+use App\Notifications\DevoirSoumis;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Log;
 
 class DevoirController extends Controller
 {
@@ -17,7 +25,7 @@ class DevoirController extends Controller
             'enseignant:id,name',
             'soumissions.apprenant:id,prenom,nom,matricule',
             'soumissions' => fn($q) => $q->where('apprenant_id', request()->user()->apprenant?->id)
-        ])->where('uae_id', $ueaId)->get();
+        ])->where('uea_id', $ueaId)->get();
 
         return response()->json($devoirs);
     }
@@ -27,8 +35,8 @@ class DevoirController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'uae_id' => 'required|exists:ueas,id',
+        $validated = $request->validate([
+            'uea_id' => 'required|exists:ueas,id',
             'titre' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date_limite' => 'required|date',
@@ -36,7 +44,7 @@ class DevoirController extends Controller
             'coefficient' => 'nullable|integer|min:1|max:10',
         ]);
 
-         $data = $request->only(['uae_id', 'titre', 'description', 'date_limite', 'coefficient']);
+        $data = $validated;
         $data['enseignant_id'] = $request->user()->id;
 
         if ($request->hasFile('fichier_consigne')) {
@@ -44,21 +52,38 @@ class DevoirController extends Controller
         }
 
         $devoir = Devoir::create($data);
-       // Récupère les apprenants de l'UEA
-$metierId = $devoir->uea->metiers->first()->id;
-$apprenants = App\Models\Apprenant::where('metier_id', $metierId)->get();
+        $devoir->load('uea', 'enseignant');
 
-// Envoie la notification à chaque apprenant
-foreach ($apprenants as $apprenant) {
-    $apprenant->user->notify(new DevoirCree($devoir));
-}
+        // 🔔 Envoie la notification aux apprenants
+        if (!$devoir->uea) {
+            Log::warning("UEA non trouvée pour le devoir ID: {$devoir->id}");
+            return response()->json([
+                'message' => 'Devoir créé, mais pas de notification : UEA introuvable.',
+                'devoir' => $devoir
+            ], 201);
+        }
+
+        $metier = $devoir->uea->metiers->first();
+
+        if (!$metier) {
+            Log::info("Aucun métier lié à l'UEA ID: {$devoir->uea->id}");
+        } else {
+            $apprenants = Apprenant::where('metier_id', $metier->id)->get();
+
+            foreach ($apprenants as $apprenant) {
+                if ($apprenant->user) {
+                    $apprenant->user->notify(new DevoirCree($devoir));
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Devoir créé avec succès',
             'devoir' => $devoir
         ], 201);
     }
-     /**
+
+    /**
      * Soumettre un devoir (par l'apprenant)
      */
     public function soumettre(Request $request, $devoirId)
@@ -85,14 +110,16 @@ foreach ($apprenants as $apprenant) {
             ]
         );
 
-        $soumission->apprenant->user->notify(new DevoirCorrige($soumission));
+        // 🔔 Notification à l'enseignant
+        if ($devoir->enseignant && $devoir->enseignant->user) {
+            $devoir->enseignant->user->notify(new DevoirSoumis($soumission));
+        }
 
         return response()->json([
             'message' => $retard ? 'Devoir soumis en retard' : 'Devoir soumis à temps',
             'soumission' => $soumission->load('apprenant')
         ], 201);
-
-         }
+    }
 
     /**
      * Corriger un devoir (par l'enseignant)
@@ -108,11 +135,17 @@ foreach ($apprenants as $apprenant) {
         $soumission = Soumission::with('devoir', 'apprenant')->findOrFail($soumissionId);
 
         $data = $request->only(['note', 'feedback']);
+
         if ($request->hasFile('fichier_corrige')) {
             $data['fichier_corrige'] = $request->file('fichier_corrige')->store('devoirs/corriges');
         }
 
         $soumission->update($data);
+
+        // 🔔 Notification à l'apprenant
+        if ($soumission->apprenant && $soumission->apprenant->user) {
+            $soumission->apprenant->user->notify(new DevoirCorrige($soumission));
+        }
 
         return response()->json([
             'message' => 'Devoir corrigé et noté',

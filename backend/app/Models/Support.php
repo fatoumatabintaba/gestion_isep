@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Support extends Model
 {
-    protected $fillable = ['uae_id', 'enseignant_id', 'titre', 'description', 'type', 'fichier'];
+    use HasFactory;
+    protected $fillable = ['uea_id', 'enseignant_id', 'titre', 'description', 'type', 'fichier'];
 
     // Un support appartient à une UEA
-    public function uae()
+    public function uea()
     {
         return $this->belongsTo(Uea::class);
     }

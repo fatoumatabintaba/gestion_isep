@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\DevoirController;
 use App\Http\Controllers\Api\DashboardController;
 use Illuminate\Support\Facades\Mail;
 
+
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -65,4 +67,17 @@ Route::get('/test-mail', function () {
         $message->to('amadou@isep.sn')->subject('Test Laravel');
     });
     return response()->json(['message' => 'Email envoyé']);
+});
+// Route::get('/ueas/{uea}/devoirs', [DevoirController::class, 'index']);
+// routes/api.php
+
+
+Route::get('/sanctum/csrf-cookie', function () {
+    return response()->json(['message' => 'Sanctum ready']);
+})->middleware('web');
+
+
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
 });
