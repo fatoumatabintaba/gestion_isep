@@ -5,10 +5,6 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "repositories": [
-    {
-        "type": "vcs",
-        "url": "https://github.com/sendinblue/APIv3-Php"
-    }
 ],
     "require": {
         "php": "^8.1",
@@ -17,8 +13,7 @@
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
-        "laravel/tinker": "^2.8",
-        "brevo/api-v3-sdk": "dev-master"
+        "laravel/tinker": "^2.8"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -70,7 +65,8 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        }
+        },
+        "disable-tls": true
     },
     "minimum-stability": "dev",
     "prefer-stable": true

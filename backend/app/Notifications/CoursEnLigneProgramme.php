@@ -45,7 +45,7 @@ class CoursEnLigneProgramme extends Notification
         ->line("**Date :** {$this->seance->date} à {$this->seance->heure_debut}");
 
     if ($this->seance->lien_reunion) {
-        $mail->action('Rejoindre le cours', $this->seance->lien_reunion);
+        $mail->action('Rejoindre le cours', $this->seance->lien_reunion); //ftgomanrffmuhkfq
     } else {
         $mail->line('Le lien de réunion sera partagé prochainement.');
     }

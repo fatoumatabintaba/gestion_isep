@@ -19,20 +19,24 @@ use Illuminate\Support\Facades\Mail;
 |--------------------------------------------------------------------------
 */
 
-// 🔓 Routes publiques : authentification
+Route::get('/', function () {
+    return view('welcome');
+});
+
+//  Routes publiques : authentification
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [RegisteredUserController::class, 'login']);
 
-// 🔐 Routes protégées : nécessitent un token
+//  Routes protégées : nécessitent un token
 Route::middleware(['auth:sanctum'])->group(function () {
 
-    // 📊 Dashboard
+    //  Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
-    // 🗓️ Séances
+    //  Séances
     Route::get('/seances', [SeanceController::class, 'index']);
 
-    // 👨‍🏫 Enseignant
+    //  Enseignant
     Route::middleware(['role:enseignant'])->group(function () {
         Route::post('/seances', [SeanceController::class, 'store']);
         Route::post('/presences', [PresenceController::class, 'store']);
@@ -43,10 +47,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/soumissions/{soumissionId}/corriger', [DevoirController::class, 'corriger']);
     });
 
-    // 👩‍🎓 Apprenant
+    //  Apprenant
     Route::middleware(['role:apprenant'])->group(function () {
         Route::post('/justificatifs', [JustificatifController::class, 'store']);
         Route::post('/devoirs/{devoirId}/soumettre', [DevoirController::class, 'soumettre']);
+        Route::get('/apprenants', function () {
+        return response()->json(
+            \App\Models\Apprenant::with('user')->get()
+        );
+    });
     });
 
     // 👨‍💼 Coordinateur
