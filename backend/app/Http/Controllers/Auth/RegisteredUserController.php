@@ -20,7 +20,6 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-
     public function login(Request $request)
     {
         $request->validate([
@@ -31,7 +30,31 @@ class RegisteredUserController extends Controller
         if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
             $user = Auth::user();
             $token = $user->createToken('api-token')->plainTextToken;
-            return response()->json(['user' => $user, 'token' => $token]);
+
+            // Chercher l'apprenant lié (avec metier)
+            $apprenant = Apprenant::where('user_id', $user->id)->with('metier')->first();
+
+            // 🔽 Tableau de redirection par rôle
+            $redirects = [
+                'apprenant' => '/dashboard/apprenant',
+                'enseignant' => '/dashboard/enseignant',
+                'coordinateur' => '/dashboard/coordinateur',
+                'chef_departement' => '/dashboard/chef',
+                'admin' => '/admin'
+            ];
+
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'annee' => $apprenant ? $apprenant->annee : null,
+                    'metier' => $apprenant && $apprenant->metier ? $apprenant->metier->nom : null
+                ],
+                'token' => $token,
+                'redirect' => $redirects[$user->role] ?? '/' // 🔥 Ajout ici
+            ]);
         }
 
         return response()->json(['message' => 'Identifiants invalides.'], 401);
@@ -39,12 +62,21 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+        // Validation commune
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|in:apprenant,enseignant,coordinateur,assistant,admin',
-        ]);
+        ];
+
+        // Si c'est un apprenant, on ajoute validation metier_id et annee
+        if ($request->role === 'apprenant') {
+            $rules['metier_id'] = ['required', 'integer', 'exists:metiers,id'];
+            $rules['annee'] = ['required', 'integer', 'in:1,2'];
+        }
+
+        $request->validate($rules);
 
         $user = User::create([
             'name' => $request->name,
@@ -67,8 +99,8 @@ class RegisteredUserController extends Controller
                     'nom' => $nom,
                     'prenom' => $prenom,
                     'email' => $user->email,
-                    'annee' => 1,
-                    'metier_id' => 1,
+                    'annee' => $request->annee,
+                    'metier_id' => $request->metier_id,
                     'user_id' => $user->id
                 ]);
             }

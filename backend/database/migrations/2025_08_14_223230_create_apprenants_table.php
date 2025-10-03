@@ -19,7 +19,8 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('telephone')->nullable();
             $table->tinyInteger('annee'); // 1 ou 2
-            $table->foreignId('metier_id')->constrained('metiers');
+             $table->foreignId('metier_id')->constrained(); 
+            // $table->foreignId('metier_id')->constrained('metiers');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });

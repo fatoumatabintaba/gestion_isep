@@ -90,3 +90,13 @@ Route::get('/sanctum/csrf-cookie', function () {
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::middleware('auth:sanctum')->get('/apprenants', function (Request $request) {
+    $query = Apprenant::with('user');
+
+    if ($request->has('metier_id')) {
+        $query->where('metier_id', $request->metier_id);
+    }
+
+    return response()->json($query->get());
+});

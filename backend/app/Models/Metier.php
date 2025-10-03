@@ -5,17 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+// App\Models\Metier
 class Metier extends Model
 {
-    protected $fillable = ['nom'];
+    protected $fillable = ['nom', 'description'];
 
-    // un metier suit plusieurs UEAs
-    public function ueas() {
-        return $this->belongsToMany(Uea::class, 'metier_uea');
+    public function ueas()
+    {
+        return $this->belongsToMany(Uea::class);
     }
 
-    // un metier peut avoir plusieurs apprenants
-    public function apprenants(){
+    public function apprenants()
+    {
         return $this->hasMany(Apprenant::class);
     }
 }
