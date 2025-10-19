@@ -11,11 +11,11 @@ class ResponsableMetier extends Model
      protected $fillable = ['user_id', 'metier_id'];
        public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
     }
 
     public function metier()
     {
-        return $this->belongsTo(Metier::class);
+        return $this->belongsTo(\App\Models\Metier::class, 'metier_id');
     }
 }

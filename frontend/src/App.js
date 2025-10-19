@@ -13,6 +13,8 @@ import DashboardChefDepartement from './pages/DashboardChefDepartement';
 import DashboardCoordinateur from './pages/DashboardCoordinateur';
 import DashboardResponsableMetier from './pages/DashboardResponsableMetier';
 import DashboardApprenant from './pages/DashboardApprenant';
+import DashboardEnseignant from './pages/DashboardEnseignant';
+import MarquerPresences from './pages/MarquerPresences';
 
 // Composant sécurisé
 import BintaOnlyRoute from './components/BintaOnlyRoute'; // ✅ Nouveau composant
@@ -20,7 +22,7 @@ import BintaOnlyRoute from './components/BintaOnlyRoute'; // ✅ Nouveau composa
 function App() {
   useEffect(() => {
     const fetchData = async () => {
-      await api.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      await api.get('/sanctum/csrf-cookie', { withCredentials: true });
     };
     fetchData();
   }, []);
@@ -37,10 +39,14 @@ function App() {
         <Route path="/dashboard/chef" element={<DashboardChefDepartement />} />
         <Route path="/dashboard/coordinateur" element={<DashboardCoordinateur />} />
         <Route path="/dashboard/responsable-metier" element={<DashboardResponsableMetier />} />
-        <Route path="/dashboard/apprenant" element={<DashboardApprenant />} />
+        <Route path="/dashboard/enseignant" element={<DashboardEnseignant />} />
+        <Route path="/marquer-presences" element={<MarquerPresences />} />
+        <Route path="/dashboard/apprenant/:metierSlug/annee-:annee" element={<DashboardApprenant />}  />
 
-        {/* 🔐 Seul Binta peut accéder à Filament */}
+        🔐 Seul Binta peut accéder à Filament
         <Route path="/admin/*" element={<BintaOnlyRoute />} />
+          {/* ✅ AJOUTEZ CETTE ROUTE FALLBACK POUR LES ERREURS */}
+       
       </Routes>
     </Router>
   );

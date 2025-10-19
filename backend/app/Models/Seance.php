@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+
 use App\Models\Uea;
 use App\Models\Presence;
 use App\Models\Justificatif;
@@ -10,18 +11,32 @@ use Illuminate\Database\Eloquent\Model;
 class Seance extends Model
 {
     use HasFactory;
-    protected $fillable = ['uea_id', 'enseignant_id', 'salle', 'date',
-        'heure_debut', 'heure_fin', 'duree',
-        'type', 'lien_reunion', 'statut'];
+
+    protected $fillable = [
+        'nom', // ✅ AJOUTER 'nom' ICI
+        'uea_id',
+        'uea_nom',
+        'metier_id',
+        'annee',
+        'enseignant_id',
+        'salle',
+        'date',
+        'heure_debut',
+        'heure_fin',
+        'duree',
+        'type',
+        'lien_reunion',
+        'statut'
+    ];
 
     protected $casts = ['date' => 'date'];
 
     public function uea()
-{
-    return $this->belongsTo(Uea::class);
-}
+    {
+        return $this->belongsTo(Uea::class);
+    }
 
-         // Une séance est animée par un enseignant (User)
+    // Une séance est animée par un enseignant (User)
     public function enseignant()
     {
         return $this->belongsTo(\App\Models\User::class, 'enseignant_id');
@@ -40,9 +55,7 @@ class Seance extends Model
     }
 
     public function metiers()
-   {
+    {
         return $this->belongsToMany(Metier::class, 'uea_metier');
     }
-
-
 }

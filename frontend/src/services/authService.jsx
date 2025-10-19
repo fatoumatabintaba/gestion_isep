@@ -1,8 +1,10 @@
 import api from './api'; // Ton instance Axios
+import axios from 'axios';
 
 const handleLogin = async (credentials) => {
   try {
-    const res = await api.post('/login', credentials); // ou '/api/login' selon ton backend
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+    const res = await axios.post('http://localhost:8000/api/login', credentials, { withCredentials: true });
     
     localStorage.setItem('token', res.data.token);
     localStorage.setItem('user', JSON.stringify(res.data.user));

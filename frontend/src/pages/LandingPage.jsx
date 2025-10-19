@@ -8,10 +8,13 @@ import {
   Navbar,
   Button,
   Card,
-  Dropdown,
-  Alert
+  Dropdown
 } from 'react-bootstrap';
 import styled, { keyframes } from 'styled-components';
+import axios from 'axios';
+
+// ⭐ IMPORT DE VOTRE IMAGE - CHEMIN CORRECT
+import heroImage from '../assets/images/hero-image.jpg';
 
 // === 🌟 ANIMATIONS ===
 const fadeInUp = keyframes`
@@ -68,7 +71,7 @@ const gradientShift = keyframes`
 
 // === 🎨 STYLED COMPONENTS ===
 const HeroSection = styled.section`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4a90e2 100%);
   background-size: 300% 300%;
   animation: ${gradientShift} 8s ease infinite;
   padding: 120px 0 100px;
@@ -85,9 +88,9 @@ const HeroSection = styled.section`
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 20% 80%, rgba(30, 60, 114, 0.3) 0%, transparent 50%),
       radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+      radial-gradient(circle at 40% 40%, rgba(74, 144, 226, 0.2) 0%, transparent 50%);
     pointer-events: none;
   }
 
@@ -110,7 +113,7 @@ const StyledNavbar = styled(Navbar)`
   .navbar-brand {
     font-weight: 800;
     font-size: 1.5rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -129,7 +132,7 @@ const Title = styled.h1`
   line-height: 1.1;
 
   .highlight {
-    background: linear-gradient(135deg, #FFD700, #FF6B35);
+    background: linear-gradient(135deg, #FFD700, #4a90e2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -157,9 +160,9 @@ const Description = styled.p`
   font-size: 1rem;
 
   .specialty {
-    color: #FFD700;
+    color: #4a90e2;
     font-weight: 600;
-    text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+    text-shadow: 0 2px 10px rgba(74, 144, 226, 0.3);
   }
 `;
 
@@ -197,7 +200,7 @@ const ImageContainer = styled.div`
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+      background: linear-gradient(135deg, rgba(30, 60, 114, 0.1), rgba(42, 82, 152, 0.1));
       z-index: 1;
     }
 
@@ -228,8 +231,8 @@ const ImageContainer = styled.div`
     align-items: center;
     justify-content: center;
     font-size: 2rem;
-    color: #FFD700;
-    text-shadow: 0 2px 10px rgba(255, 215, 0, 0.5);
+    color: #4a90e2;
+    text-shadow: 0 2px 10px rgba(74, 144, 226, 0.5);
   }
 
   .floating-elements:nth-child(3) {
@@ -265,7 +268,7 @@ const MetierCard = styled(Card)`
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+    background: linear-gradient(135deg, #1e3c72, #2a5298, #4a90e2);
     transform: scaleX(0);
     transition: transform 0.3s ease;
     transform-origin: left;
@@ -317,21 +320,21 @@ const StyledDropdown = styled(Dropdown)`
     padding: 12px 25px !important;
     font-weight: 600 !important;
     border: none !important;
-    background: linear-gradient(135deg, #667eea, #764ba2) !important;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+    background: linear-gradient(135deg, #1e3c72, #2a5298) !important;
+    box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3) !important;
     transition: all 0.3s ease !important;
     color: white !important;
 
     &:hover, &:focus, &:active {
       transform: translateY(-2px) !important;
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
-      background: linear-gradient(135deg, #667eea, #764ba2) !important;
+      box-shadow: 0 6px 20px rgba(30, 60, 114, 0.4) !important;
+      background: linear-gradient(135deg, #1e3c72, #2a5298) !important;
       border: none !important;
       color: white !important;
     }
 
     &:focus {
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+      box-shadow: 0 6px 20px rgba(30, 60, 114, 0.4) !important;
     }
 
     &::after {
@@ -370,7 +373,7 @@ const StyledDropdown = styled(Dropdown)`
       white-space: nowrap !important;
 
       &:hover, &:focus {
-        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        background: linear-gradient(135deg, #1e3c72, #2a5298) !important;
         color: white !important;
         transform: translateX(5px) !important;
         border: none !important;
@@ -411,7 +414,7 @@ const GlobalAccessCard = styled(Card)`
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+    background: linear-gradient(135deg, rgba(30, 60, 114, 0.05), rgba(42, 82, 152, 0.05));
     z-index: 1;
   }
 
@@ -443,7 +446,7 @@ const GlobalAccessCard = styled(Card)`
 `;
 
 const Footer = styled.footer`
-  background: linear-gradient(135deg, #2d3748, #1a202c);
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
   color: white;
   padding: 60px 0 30px;
   position: relative;
@@ -470,16 +473,16 @@ const Footer = styled.footer`
       justify-content: center;
       width: 50px;
       height: 50px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
       border-radius: 50%;
       color: white;
       text-decoration: none;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3);
 
       &:hover {
         transform: translateY(-5px) scale(1.1);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 8px 25px rgba(30, 60, 114, 0.4);
       }
 
       i {
@@ -499,7 +502,6 @@ const Footer = styled.footer`
 function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
 
-  // Gérer la transparence de la navbar au scroll
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -508,15 +510,11 @@ function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fonction de redirection selon le rôle et le métier
   const redirectToLogin = (metierId, metierNom, role) => {
-    // Stocke temporairement les choix pour la redirection après login
     localStorage.setItem('redirectAfterLogin', `/dashboard/${role}`);
     localStorage.setItem('userRole', role);
     localStorage.setItem('userMetier', metierNom);
     localStorage.setItem('userMetierId', metierId);
-
-    // Redirige vers login
     window.location.href = '/login';
   };
 
@@ -548,7 +546,6 @@ function LandingPage() {
                 }}
               >
                 Connexion
-                
               </Nav.Link>
               <Button
                 href="/register"
@@ -557,17 +554,17 @@ function LandingPage() {
                   padding: '10px 25px',
                   fontWeight: 600,
                   border: 'none',
-                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                  background: 'linear-gradient(135deg, #1e3c72, #2a5298)',
+                  boxShadow: '0 4px 15px rgba(30, 60, 114, 0.3)',
                   transition: 'all 0.3s ease'
                 }}
                 onMouseOver={(e) => {
                   e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                  e.target.style.boxShadow = '0 6px 20px rgba(30, 60, 114, 0.4)';
                 }}
                 onMouseOut={(e) => {
                   e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                  e.target.style.boxShadow = '0 4px 15px rgba(30, 60, 114, 0.3)';
                 }}
               >
                 Inscription
@@ -601,13 +598,18 @@ function LandingPage() {
               </Description>
             </Col>
 
-            {/* Image à droite */}
+            {/* ⭐ IMAGE À DROITE - AVEC VOTRE IMAGE LOCALE */}
             <Col lg={6} className="d-flex justify-content-center position-relative">
               <ImageContainer>
                 <div className="main-image">
                   <img
-                    src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                    src={heroImage} // VOTRE IMAGE hero-image.jpg
                     alt="Étudiants collaborant dans un environnement moderne"
+                    onError={(e) => {
+                      // Fallback si l'image ne charge pas
+                      e.target.src = "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                      console.warn("Image locale non trouvée, utilisation du fallback");
+                    }}
                   />
                 </div>
                 <div className="floating-elements">
@@ -780,7 +782,7 @@ function LandingPage() {
                   <Card.Body>
                     <div className="text-center">
                       <h5 style={{ fontSize: '1.5rem' }}>
-                        <i className="fas fa-crown me-3" style={{ color: '#FFD700' }}></i>
+                        <i className="fas fa-crown me-3" style={{ color: '#4a90e2' }}></i>
                         Accès Administratif
                       </h5>
                       <p className="text-muted mb-4">
@@ -789,7 +791,7 @@ function LandingPage() {
                       <div>
                         <Button
                           style={{
-                            background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
+                            background: 'linear-gradient(135deg, #1e3c72, #4a90e2)',
                             border: 'none'
                           }}
                           onClick={() => redirectToLogin(null, 'Tous', 'coordinateur')}
