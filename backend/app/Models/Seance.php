@@ -36,10 +36,7 @@ class Seance extends Model
         return $this->belongsTo(Uea::class);
     }
 
-<<<<<<< HEAD
 
-=======
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     // Une séance est animée par un enseignant (User)
     public function enseignant()
     {
@@ -62,7 +59,7 @@ class Seance extends Model
     {
         return $this->belongsToMany(Metier::class, 'uea_metier');
     }
-<<<<<<< HEAD
+
     public function getUeaNomAttribute()
 {
     return $this->uea_nom ?? 'UEA non spécifiée';
@@ -76,6 +73,5 @@ public function metier()
 {
     return $this->belongsTo(Metier::class);
 }
-=======
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
+
 }
