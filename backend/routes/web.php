@@ -19,6 +19,7 @@ Route::get('/', function () {
     return ['Laravel' => app()->version()];
 });
 
+<<<<<<< HEAD
 // 🔥 Route de connexion automatique pour binta
 Route::get('/login-binta', function () {
     $user = User::where('email', 'bintadjenga1@gmail.com')->first();
@@ -47,4 +48,6 @@ Route::get('/binta-test', function () {
     return redirect('/login-binta');
 });
 
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
 require __DIR__.'/auth.php';

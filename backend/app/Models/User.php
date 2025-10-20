@@ -132,6 +132,7 @@ class User extends Authenticatable implements FilamentUser
         ]);
         return in_array($this->role, ['admin', 'chef_departement']);
     }
+<<<<<<< HEAD
 
     public function user()
 {
@@ -139,4 +140,6 @@ class User extends Authenticatable implements FilamentUser
 }
 
 
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
 }

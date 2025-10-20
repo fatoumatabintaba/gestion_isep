@@ -26,7 +26,11 @@ function MarquerPresences() {
   const [selected, setSelected] = useState({
     nom_seance: '',
     metier_id: '',
+<<<<<<< HEAD
     uea_nom: '',
+=======
+    uea_nom: '', // ✅ CHANGÉ : uea_nom au lieu de uea_id
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     date: new Date().toISOString().split('T')[0],
     annee: '',
     heure_debut: '08:00',
@@ -86,6 +90,7 @@ function MarquerPresences() {
       });
 
       const apprenantsList = res.data.apprenants || res.data || [];
+<<<<<<< HEAD
       
       // ✅ VÉRIFICATION que les données sont valides
       if (!Array.isArray(apprenantsList)) {
@@ -108,6 +113,16 @@ function MarquerPresences() {
       });
       setPresences(initPresences);
 
+=======
+      setApprenants(apprenantsList);
+
+      // Initialiser toutes les présences à "présent" par défaut
+      const initPresences = {};
+      apprenantsList.forEach(a => {
+        initPresences[a.id] = 'present';
+      });
+      setPresences(initPresences);
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     } catch (err) {
       console.error('Erreur lors du chargement des apprenants:', err.response?.data || err);
       setApprenants([]);
@@ -133,6 +148,10 @@ function MarquerPresences() {
     chargerApprenants(selected.metier_id, anneeValue);
   };
 
+<<<<<<< HEAD
+=======
+  // ✅ CHANGÉ : Saisie manuelle de l'UEA
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
   const handleUeaChange = (e) => {
     setSelected(prev => ({ ...prev, uea_nom: e.target.value }));
   };
@@ -189,9 +208,16 @@ function MarquerPresences() {
 
       const token = localStorage.getItem('token');
       
+<<<<<<< HEAD
       const seanceData = {
         nom: selected.nom_seance,
         uea_nom: selected.uea_nom,
+=======
+      // ✅ STRUCTURE SIMPLIFIÉE - UEA en texte
+      const seanceData = {
+        nom: selected.nom_seance,
+        uea_nom: selected.uea_nom, // ✅ Texte libre au lieu de ID
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
         enseignant_id: user.id,
         salle: selected.salle,
         date: selected.date,
@@ -200,12 +226,22 @@ function MarquerPresences() {
         duree: selected.duree,
         type: selected.type,
         statut: 'programmee',
+<<<<<<< HEAD
         metier_id: selected.metier_id,
         annee: selected.annee || '2'
       };
 
       console.log('📤 Envoi des données de séance:', seanceData);
 
+=======
+        metier_id: selected.metier_id, // ✅ Ajout du métier pour faciliter
+        annee: selected.annee || '2'   // ✅ Ajout de l'année
+      };
+
+      console.log('📤 Envoi des données de séance (simplifié):', seanceData);
+
+      // Création de la séance
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
       const response = await axios.post(
         'http://localhost:8000/api/seances', 
         seanceData, 
@@ -248,7 +284,11 @@ function MarquerPresences() {
     }
   };
 
+<<<<<<< HEAD
   // ✅✅✅ FONCTION PRINCIPALE CORRIGÉE - FILTRAGE AVANT ENVOI
+=======
+  // ✅✅✅ FONCTION PRINCIPALE
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -279,6 +319,7 @@ function MarquerPresences() {
       const seanceId = nouvelleSeance.id;
       console.log('🎯 Séance créée avec ID:', seanceId);
 
+<<<<<<< HEAD
       // 2. ✅ CORRECTION : Filtrer les apprenants valides AVANT même de construire les données
       const token = localStorage.getItem('token');
       
@@ -333,6 +374,22 @@ function MarquerPresences() {
       });
 
       // 3. Envoyer les présences FILTRÉES
+=======
+      // 2. Enregistrer les présences avec l'ID de la séance créée
+      const token = localStorage.getItem('token');
+      
+      const requestData = {
+        date: selected.date,
+        presences: Object.keys(presences).map(id => ({
+          apprenant_id: parseInt(id),
+          statut: presences[id],
+          commentaire: ''
+        }))
+      };
+
+      console.log('📤 Enregistrement des présences pour séance:', seanceId);
+
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
       const response = await axios.post(
         `http://localhost:8000/api/seances/${seanceId}/presences/multiple`, 
         requestData, 
@@ -346,7 +403,11 @@ function MarquerPresences() {
         }
       );
 
+<<<<<<< HEAD
       console.log('✅ RÉPONSE DU SERVEUR:', response.data);
+=======
+      console.log('✅ Réponse du serveur:', response.data);
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
       setSuccess("✅ Séance créée et présences enregistrées avec succès !");
       setTimeout(() => setSuccess(''), 5000);
       
@@ -358,12 +419,17 @@ function MarquerPresences() {
       }));
       
     } catch (err) {
+<<<<<<< HEAD
       console.error('❌ ERREUR DETAILLEE:', {
+=======
+      console.error('❌ Erreur lors de l\'enregistrement:', {
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
         status: err.response?.status,
         data: err.response?.data,
         message: err.message
       });
       
+<<<<<<< HEAD
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         let errorMessage = 'Erreurs de validation:\n\n';
@@ -376,6 +442,10 @@ function MarquerPresences() {
       } else {
         alert('❌ Erreur lors de l\'enregistrement des présences.');
       }
+=======
+      const errorMessage = err.response?.data?.message || 'Erreur lors de l\'enregistrement des présences.';
+      alert(`❌ ${errorMessage}`);
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     }
   };
 
@@ -460,7 +530,11 @@ function MarquerPresences() {
                 </select>
               </div>
 
+<<<<<<< HEAD
               {/* UEA */}
+=======
+              {/* ✅ CHANGÉ : UEA en saisie manuelle */}
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Nom de l'UEA *</span>
@@ -585,7 +659,11 @@ function MarquerPresences() {
               </div>
             )}
 
+<<<<<<< HEAD
             {/* Section apprenants */}
+=======
+            {/* Le reste du code pour les présences reste identique */}
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
             {loading ? (
               <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-2xl p-12 text-center mx-6 mb-6">
                 <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>

@@ -38,6 +38,7 @@ class ApprenantController extends Controller
             $query->where('annee', $annee);
         }
 
+<<<<<<< HEAD
         // ✅ CORRECTION MINIMALE ET GARANTIE :
         $apprenants = $query->get()->map(function ($a) {
             return [
@@ -48,6 +49,9 @@ class ApprenantController extends Controller
                 'metier_id' => $a->metier_id,
             ];
         });
+=======
+        $apprenants = $query->get();
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
 
         return response()->json([
             'apprenants' => $apprenants

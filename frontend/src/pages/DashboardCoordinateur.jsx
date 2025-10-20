@@ -25,11 +25,18 @@ function DashboardCoordinateur() {
   const [absences, setAbsences] = useState([]);
   const [seances, setSeances] = useState([]);
   const [justificatifs, setJustificatifs] = useState([]);
+<<<<<<< HEAD
   const [presences, setPresences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showSidebar, setShowSidebar] = useState(false);
   const [activeSection, setActiveSection] = useState('presences');
+=======
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [activeSection, setActiveSection] = useState('absences');
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [selectedJustificatif, setSelectedJustificatif] = useState(null);
   const [validationMotif, setValidationMotif] = useState('');
@@ -63,19 +70,30 @@ function DashboardCoordinateur() {
           throw new Error("Rôle invalide");
         }
 
+<<<<<<< HEAD
         const [devoirsRes, absencesRes, seancesRes, justificatifsRes, presencesRes] = await Promise.all([
           api.get('/api/coordinateur/devoirs'),
           api.get('/api/absences'),
           api.get('/api/seances'),
           api.get('/api/justificatifs/en-attente'),
           api.get('/api/coordinateur/presences')
+=======
+        const [devoirsRes, absencesRes, seancesRes, justificatifsRes] = await Promise.all([
+          api.get('/api/coordinateur/devoirs'),
+          api.get('/api/absences'),
+          api.get('/api/seances'),
+          api.get('/api/justificatifs/en-attente')
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
         ]);
 
         setDevoirs(devoirsRes.data);
         setAbsences(absencesRes.data);
         setSeances(seancesRes.data);
         setJustificatifs(justificatifsRes.data);
+<<<<<<< HEAD
         setPresences(presencesRes.data);
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
       } catch (err) {
         console.error("Erreur lors du chargement :", err);
         
@@ -131,6 +149,7 @@ function DashboardCoordinateur() {
     setShowValidationModal(true);
   };
 
+<<<<<<< HEAD
   // ✅ FONCTIONS CORRIGÉES POUR GÉRER LES OBJETS
   const getMetierNom = (metier) => {
     if (!metier) return 'Non spécifié';
@@ -159,11 +178,25 @@ function DashboardCoordinateur() {
       default:
         return <Badge bg="secondary">Non défini</Badge>;
     }
+=======
+  // Styles pour les effets de survol
+  const cardHoverStyle = {
+    transition: 'all 0.3s ease-in-out',
+    cursor: 'pointer',
+    border: '1px solid #e9ecef'
+  };
+
+  const cardHoverEffect = {
+    transform: 'translateY(-5px)',
+    boxShadow: '0 8px 25px rgba(0, 123, 255, 0.15)',
+    borderColor: '#007bff'
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
   };
 
   // Fonction pour rendre le contenu principal
   const renderMainContent = () => {
     switch (activeSection) {
+<<<<<<< HEAD
       case 'presences':
         return (
           <Row className="mb-4">
@@ -301,6 +334,8 @@ function DashboardCoordinateur() {
           </Row>
         );
 
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
       case 'absences':
         return (
           <Row className="mb-4">
@@ -340,7 +375,11 @@ function DashboardCoordinateur() {
                             <tr key={a.id}>
                               <td className="text-primary">{a.apprenant?.user?.name || 'Inconnu'}</td>
                               <td className="text-muted">
+<<<<<<< HEAD
                                 <Badge bg="info">{getMetierNom(a.apprenant?.metier)}</Badge>
+=======
+                                <Badge bg="info">{a.apprenant?.metier || 'Non défini'}</Badge>
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                               </td>
                               <td className="text-muted">
                                 <Badge bg="secondary">Année {a.apprenant?.annee || '?'}</Badge>
@@ -404,7 +443,11 @@ function DashboardCoordinateur() {
                               <td className="text-primary">{d.titre}</td>
                               <td className="text-muted">{d.apprenant?.user?.name}</td>
                               <td className="text-muted">
+<<<<<<< HEAD
                                 <Badge bg="info">{getMetierNom(d.apprenant?.metier || d.metier)}</Badge>
+=======
+                                <Badge bg="info">{d.apprenant?.metier || d.metier || 'Non spécifié'}</Badge>
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                               </td>
                               <td className="text-muted">
                                 <Badge bg="secondary">Année {d.apprenant?.annee || d.annee || '?'}</Badge>
@@ -466,14 +509,22 @@ function DashboardCoordinateur() {
                               <td className="text-primary">{s.matiere || s.nom}</td>
                               <td className="text-muted">{s.uea_nom}</td>
                               <td className="text-muted">
+<<<<<<< HEAD
                                 <Badge bg="info">{getMetierNom(s.metier?.nom || s.uea?.metier)}</Badge>
+=======
+                                <Badge bg="info">{s.metier?.nom || s.uea?.metier || 'Non spécifié'}</Badge>
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                               </td>
                               <td className="text-muted">
                                 <Badge bg="secondary">Année {s.uea?.annee || '?'}</Badge>
                               </td>
                               <td className="text-muted">{s.date || s.date_seance}</td>
                               <td className="text-muted">{s.heure_debut} - {s.heure_fin}</td>
+<<<<<<< HEAD
                               <td className="text-muted">{getEnseignantNom(s.enseignant?.name)}</td>
+=======
+                              <td className="text-muted">{s.enseignant?.name}</td>
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                             </tr>
                           ))}
                         </tbody>
@@ -526,7 +577,11 @@ function DashboardCoordinateur() {
                             <tr key={j.id}>
                               <td className="text-primary">{j.apprenant?.user?.name}</td>
                               <td>
+<<<<<<< HEAD
                                 <Badge bg="info">{getMetierNom(j.apprenant?.metier)}</Badge>
+=======
+                                <Badge bg="info">{j.apprenant?.metier || 'Non spécifié'}</Badge>
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                               </td>
                               <td>
                                 <Badge bg="secondary">Année {j.apprenant?.annee || '?'}</Badge>
@@ -642,6 +697,7 @@ function DashboardCoordinateur() {
               <div className="list-group list-group-flush">
                 <button
                   className={`list-group-item list-group-item-action d-flex align-items-center ${
+<<<<<<< HEAD
                     activeSection === 'presences' ? 'active bg-success text-white' : ''
                   }`}
                   onClick={() => {
@@ -658,6 +714,8 @@ function DashboardCoordinateur() {
                 
                 <button
                   className={`list-group-item list-group-item-action d-flex align-items-center ${
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                     activeSection === 'absences' ? 'active bg-primary text-white' : ''
                   }`}
                   onClick={() => {
@@ -725,7 +783,10 @@ function DashboardCoordinateur() {
               <div className="p-3 border-top bg-light">
                 <small className="text-muted">
                   <strong>📈 Aperçu :</strong><br />
+<<<<<<< HEAD
                   • Présences: <span className="fw-bold text-success">{presences.length}</span><br />
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                   • Absences: <span className="fw-bold text-primary">{absences.length}</span><br />
                   • Devoirs: <span className="fw-bold text-primary">{devoirs.length}</span><br />
                   • Justificatifs: <span className="fw-bold text-primary">{justificatifs.length}</span>
@@ -753,7 +814,11 @@ function DashboardCoordinateur() {
             <>
               <Alert variant="info">
                 <strong>Apprenant:</strong> {selectedJustificatif.apprenant?.user?.name}<br />
+<<<<<<< HEAD
                 <strong>Métier:</strong> {getMetierNom(selectedJustificatif.apprenant?.metier)}<br />
+=======
+                <strong>Métier:</strong> {selectedJustificatif.apprenant?.metier}<br />
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
                 <strong>Année:</strong> {selectedJustificatif.apprenant?.annee}<br />
                 <strong>Séance:</strong> {selectedJustificatif.seance?.matiere}<br />
                 <strong>Date séance:</strong> {new Date(selectedJustificatif.seance?.date_seance).toLocaleDateString()}<br />

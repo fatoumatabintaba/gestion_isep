@@ -41,7 +41,11 @@ function App() {
         <Route path="/dashboard/responsable-metier" element={<DashboardResponsableMetier />} />
         <Route path="/dashboard/enseignant" element={<DashboardEnseignant />} />
         <Route path="/marquer-presences" element={<MarquerPresences />} />
+<<<<<<< HEAD
         <Route path="/dashboard/apprenant/:metierSlug/:annee" element={<DashboardApprenant />}  />
+=======
+        <Route path="/dashboard/apprenant/:metierSlug/annee-:annee" element={<DashboardApprenant />}  />
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
 
         🔐 Seul Binta peut accéder à Filament
         <Route path="/admin/*" element={<BintaOnlyRoute />} />

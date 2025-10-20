@@ -104,7 +104,10 @@ Route::middleware([
             Route::get('/coordinateur/devoirs', [DevoirController::class, 'enAttente']);
             Route::get('/absences', [PresenceController::class, 'frequentes']);
             Route::get('/presences', [PresenceController::class, 'indexForCoordinateur']);
+<<<<<<< HEAD
             Route::get('/coordinateur/presences', [PresenceController::class, 'indexForCoordinateur']);
+=======
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
             Route::get('/seances', [SeanceController::class, 'indexForCoordinateur']);
         });
 

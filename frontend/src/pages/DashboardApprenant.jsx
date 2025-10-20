@@ -24,10 +24,16 @@ function DashboardApprenant() {
   const { metierSlug, annee } = useParams(); 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams(); // ✅ Remplacé useQuery()
+<<<<<<< HEAD
   const metier_id = searchParams.get('metierSlug');
     console.log('🔍 Debug Dashboard:', { metierSlug });
 
   console.log('🔍 Debug Dashboard:', { metierSlug, annee });
+=======
+  const metier_id = searchParams.get('metier_id');
+  
+  console.log('🔍 Debug Dashboard:', { metierSlug, annee, metier_id });
+>>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
 
   const [user, setUser] = useState(null);
   const [metierNom, setMetierNom] = useState('');

@@ -1,3 +1,4 @@
+
 /* Thème Binta moderne - Version optimisée et corrigée */
 
 /* ===== VARIABLES ===== */
@@ -299,4 +300,45 @@
 
 .fi-input-error:focus {
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+
+/* Thème Beige/Marron pour Binta Admin */
+.filament-sidebar {
+    background: linear-gradient(180deg, #fdf8f3 0%, #f7e8d9 100%) !important;
+    border-right: 1px solid #e8d9c3 !important;
+}
+
+.filament-sidebar-item {
+    color: #673021 !important;
+    border-radius: 8px;
+    margin: 4px 8px;
+    padding: 8px 12px;
+    transition: all 0.3s ease;
+}
+
+.filament-sidebar-item:hover {
+    background-color: #e8d9c3 !important;
+    color: #5f3e31 !important;
+    transform: translateX(4px);
+}
+
+.filament-sidebar-item.active {
+    background: linear-gradient(135deg, #cd6f37 0%, #9f4626 100%) !important;
+    color: white !important;
+}
+
+.filament-main-topbar {
+    background: linear-gradient(135deg, #5f3e31 0%, #673021 100%) !important;
+}
+
+.filament-button-primary {
+    background: linear-gradient(135deg, #cd6f37 0%, #9f4626 100%) !important;
+    border: none !important;
+}
+
+.filament-card {
+    background: #faf7f2 !important;
+    border: 1px solid #e8d9c3 !important;
+    border-radius: 12px !important;
+
+}
 }
