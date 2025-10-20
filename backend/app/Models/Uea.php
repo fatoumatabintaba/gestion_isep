@@ -22,6 +22,7 @@ class Uea extends Model
     public function seances(){
         return $this->hasMany(Seance::class);
     }
+        
 
     // une UEA a plusieurs supports
     public function supports(){

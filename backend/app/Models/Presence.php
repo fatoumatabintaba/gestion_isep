@@ -7,17 +7,34 @@ use Illuminate\Database\Eloquent\Model;
 
 class Presence extends Model
 {
-    protected $fillable = ['seance_id', 'apprenant_id', 'statut'];
+    use HasFactory;
 
-    // Une présence appartient à une séance
+    // ✅ Champs pouvant être remplis
+    protected $fillable = [
+        'seance_id',
+        'apprenant_id',
+        'date',       // ✅ Ajout : permet de gérer plusieurs jours
+        'statut',
+        'commentaire'       // present / absent / retard / demi-journee
+    ];
+
+    // ✅ Date doit être castée
+    protected $casts = [
+        'date' => 'date'
+    ];
+
+    // 🔗 Une présence appartient à une séance
     public function seance()
     {
         return $this->belongsTo(Seance::class);
     }
 
-    // Une présence appartient à un apprenant
+    // 🔗 Une présence concerne un apprenant
     public function apprenant()
     {
         return $this->belongsTo(Apprenant::class);
     }
+
+    
+
 }

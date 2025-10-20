@@ -2,13 +2,17 @@
 
 namespace App\Filament\Resources;
 
-// ✅ Tous les 'use' en haut, PAS dans la classe
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Models\Metier;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Select;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Actions\EditAction;
 
 class UserResource extends Resource
 {
@@ -19,25 +23,46 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                \Filament\Forms\Components\TextInput::make('name')
+                TextInput::make('name')
                     ->required()
                     ->maxLength(255),
 
-                \Filament\Forms\Components\TextInput::make('email')
+                TextInput::make('prenom')
+                    ->required()
+                    ->maxLength(255),
+
+                TextInput::make('email')
                     ->email()
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
 
-                \Filament\Forms\Components\Select::make('role')
+                Select::make('role')
                     ->options([
+                        'apprenant' => 'Apprenant',
+                        'enseignant' => 'Enseignant',
                         'coordinateur' => 'Coordinateur',
-                        'chef_departement' => 'Chef de Département'
-
+                        'chef_departement' => 'Chef de département',
                     ])
-                    ->required(),
+                    ->required()
+                    ->reactive(), // ✅ Important pour les conditions
 
-                \Filament\Forms\Components\TextInput::make('password')
+                // ✅ CORRIGÉ : CHAMP ANNÉE UNIQUEMENT POUR LES APPRENANTS
+                Select::make('annee')
+                    ->label('Année scolaire')
+                    ->options([
+                        '1A' => '1ère Année',
+                        '2A' => '2ème Année',
+                        '3A' => '3ème Année',
+                        '4A' => '4ème Année',
+                        '5A' => '5ème Année',
+                    ])
+                    ->required(fn ($get) => $get('role') === 'apprenant') // ✅ SEULEMENT pour apprenants
+                    ->hidden(fn ($get) => $get('role') !== 'apprenant')   // ✅ CACHÉ pour autres rôles
+                    ->placeholder('Sélectionnez l\'année')
+                    ->searchable(),
+
+                TextInput::make('password')
                     ->password()
                     ->dehydrateStateUsing(fn ($state) => \Hash::make($state))
                     ->dehydrated(fn ($state) => filled($state))
@@ -49,25 +74,34 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                \Filament\Tables\Columns\TextColumn::make('name')->sortable()->searchable(),
-                \Filament\Tables\Columns\TextColumn::make('email')->sortable()->searchable(),
-                \Filament\Tables\Columns\TextColumn::make('role')
+                TextColumn::make('name')->sortable()->searchable(),
+                TextColumn::make('prenom')->sortable()->searchable(),
+                TextColumn::make('email')->sortable()->searchable(),
+                TextColumn::make('role')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                    'coordinateur' => 'warning',
-                    'chef_departement' => 'danger',
-                    'admin' => 'secondary',
-                    'enseignant' => 'info',
-                    'apprenant' => 'success',
-                    default => 'gray', // Pour tout rôle inconnu
-                })
+                        'coordinateur' => 'warning',
+                        'chef_departement' => 'danger',
+                        'admin' => 'secondary',
+                        'enseignant' => 'info',
+                        'apprenant' => 'success',
+                        default => 'gray',
+                    })
                     ->sortable(),
-                \Filament\Tables\Columns\TextColumn::make('created_at')
+                // ✅ CORRIGÉ : COLONNE ANNÉE AVEC VALEUR PAR DÉFAUT
+                TextColumn::make('annee')
+                    ->label('Année')
+                    ->formatStateUsing(fn ($state) => $state ?: 'N/A')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'primary' : 'gray')
+                    ->sortable()
+                    ->searchable(),
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
             ])
             ->actions([
-                \Filament\Tables\Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([
                 \Filament\Tables\Actions\BulkActionGroup::make([
@@ -89,22 +123,27 @@ class UserResource extends Resource
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
     }
+    public static function canAccess(): bool
+{
+    $user = auth()->user();
+    return $user && ($user->name === 'binta' || $user->role === 'admin');
+}
 
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && ($user->name === 'binta' || $user->role === 'admin');
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
     }
 
     public static function canEdit(Model $record): bool
     {
         $user = auth()->user();
-        return $user && ($user->name === 'binta' || $user->role === 'admin');
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
     }
 
     public static function canDelete(Model $record): bool
     {
         $user = auth()->user();
-        return $user && ($user->name === 'binta' || $user->role === 'admin');
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
     }
 }

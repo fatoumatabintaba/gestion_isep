@@ -4,32 +4,76 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Apprenant;
-use App\Models\Seance;
 
 class Justificatif extends Model
 {
-    protected $fillable = ['apprenant_id', 'fichier', 'motif', 'statut', 'valideur_id', 'seance_id'];
+    use HasFactory;
 
+    protected $fillable = [
+        'apprenant_id',
+        'seance_id',
+        'fichier',
+        'motif',
+        'statut',
+        'valideur_id'
+    ];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
 
-    // Un justificatif appartient à un apprenant
+    // Relations
     public function apprenant()
     {
         return $this->belongsTo(Apprenant::class);
     }
 
-    // Un justificatif est validé par un coordinateur ou assistant (User)
-    public function valideur()
-    {
-        return $this->belongsTo(\App\Models\User::class, 'valideur_id');
-    }
-
-    // Un justificatif concerne une séance
     public function seance()
     {
         return $this->belongsTo(Seance::class);
     }
 
+    public function valideur()
+    {
+        return $this->belongsTo(User::class, 'valideur_id');
+    }
 
+    // Scopes
+    public function scopeEnAttente($query)
+    {
+        return $query->where('statut', 'en_attente');
+    }
+
+    public function scopeValides($query)
+    {
+        return $query->where('statut', 'valide');
+    }
+
+    public function scopeRefuses($query)
+    {
+        return $query->where('statut', 'refuse');
+    }
+
+    // Accessors
+    public function getStatutLibelleAttribute()
+    {
+        $statuts = [
+            'en_attente' => 'En attente',
+            'valide' => 'Validé',
+            'refuse' => 'Refusé'
+        ];
+
+        return $statuts[$this->statut] ?? 'Inconnu';
+    }
+
+    public function getFichierUrlAttribute()
+    {
+        return $this->fichier ? asset('storage/' . $this->fichier) : null;
+    }
+
+    public function getNomFichierAttribute()
+    {
+        return $this->fichier ? basename($this->fichier) : null;
+    }
 }

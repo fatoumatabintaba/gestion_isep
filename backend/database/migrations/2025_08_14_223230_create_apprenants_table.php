@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('apprenants', function (Blueprint $table) {
             $table->id();
-            $table->string('matricule', 20)->unique();
+           $table->string('matricule')->unique(); // ou ->nullable(false)
             $table->string('nom');
             $table->string('prenom');
             $table->string('email')->unique();
             $table->string('telephone')->nullable();
             $table->tinyInteger('annee'); // 1 ou 2
-             $table->foreignId('metier_id')->constrained(); 
+             $table->foreignId('metier_id')->constrained();
+             // 'en_attente', 'valide', 'rejete'
             // $table->foreignId('metier_id')->constrained('metiers');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();

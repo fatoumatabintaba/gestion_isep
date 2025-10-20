@@ -13,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Database\Eloquent\Model;
 
 class ResponsableMetierResource extends Resource
 {
@@ -28,23 +29,32 @@ class ResponsableMetierResource extends Resource
     protected static ?string $pluralModelLabel = 'Responsables de Métier';
     protected static ?string $modelLabel = 'Responsable de Métier';
 
-    // 🔐 Accès uniquement pour le chef de département
+    // 🔐 AJOUTE CETTE MÉTHODE POUR AUTORISER L'ACCÈS À LA LISTE
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
+    }
+
+    // 🔐 Accès pour la création
     public static function canCreate(): bool
     {
         $user = auth()->user();
-        return $user && $user->role === 'chef_departement';
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
     }
 
-    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    // 🔐 Accès pour l'édition
+    public static function canEdit(Model $record): bool
     {
         $user = auth()->user();
-        return $user && $user->role === 'chef_departement';
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
     }
 
-    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    // 🔐 Accès pour la suppression
+    public static function canDelete(Model $record): bool
     {
         $user = auth()->user();
-        return $user && $user->role === 'chef_departement';
+        return $user && in_array($user->role, ['admin', 'chef_departement', 'coordinateur']);
     }
 
     public static function form(Form $form): Form
@@ -55,6 +65,7 @@ class ResponsableMetierResource extends Resource
                     ->label('Enseignant')
                     ->options(
                         User::where('role', 'enseignant')
+                            ->whereDoesntHave('responsableMetier') // ✅ Empêche les doublons
                             ->pluck('name', 'id')
                     )
                     ->searchable()
@@ -66,7 +77,8 @@ class ResponsableMetierResource extends Resource
                 Forms\Components\Select::make('metier_id')
                     ->label('Métier')
                     ->options(
-                        Metier::pluck('nom', 'id')
+                        Metier::whereDoesntHave('responsableMetier') // ✅ Empêche les doublons
+                            ->pluck('nom', 'id')
                     )
                     ->required()
                     ->unique(ignoreRecord: true)

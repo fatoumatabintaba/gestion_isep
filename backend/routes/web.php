@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,8 +19,32 @@ Route::get('/', function () {
     return ['Laravel' => app()->version()];
 });
 
-Route::get('/sanctum/csrf-cookie', function () {
-    return response()->json(['message' => 'Sanctum ready']);
+// 🔥 Route de connexion automatique pour binta
+Route::get('/login-binta', function () {
+    $user = User::where('email', 'bintadjenga1@gmail.com')->first();
+
+    if ($user) {
+        Auth::login($user);
+        return redirect('/binta');
+    }
+
+    return 'Utilisateur binta non trouvé';
+});
+
+// 🔥 Route de test simple (sans Filament)
+Route::get('/binta-test', function () {
+    if (Auth::check()) {
+        return "
+            <h1>Bienvenue " . Auth::user()->name . " !</h1>
+            <p>Email: " . Auth::user()->email . "</p>
+            <p>Rôle: " . Auth::user()->role . "</p>
+            <p>Vous êtes connecté avec succès.</p>
+            <a href='/binta' style='padding: 10px; background: blue; color: white; text-decoration: none;'>
+                📊 Accéder à Filament Admin
+            </a>
+        ";
+    }
+    return redirect('/login-binta');
 });
 
 require __DIR__.'/auth.php';
