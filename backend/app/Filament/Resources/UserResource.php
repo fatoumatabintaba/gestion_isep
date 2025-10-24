@@ -42,6 +42,7 @@ class UserResource extends Resource
                         'apprenant' => 'Apprenant',
                         'enseignant' => 'Enseignant',
                         'coordinateur' => 'Coordinateur',
+                        'responsable_metier' => 'Responsable Métier',
                         'chef_departement' => 'Chef de département',
                     ])
                     ->required()

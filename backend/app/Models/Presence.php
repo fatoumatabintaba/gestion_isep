@@ -15,6 +15,8 @@ class Presence extends Model
         'apprenant_id',
         'date',       // ✅ Ajout : permet de gérer plusieurs jours
         'statut',
+        'metier_id',    // ✅ ASSUREZ-VOUS QUE C'EST LÀ
+        'annee',
         'commentaire'       // present / absent / retard / demi-journee
     ];
 
@@ -22,6 +24,10 @@ class Presence extends Model
     protected $casts = [
         'date' => 'date'
     ];
+    // protected $attributes = [
+    //     'metier_id' => 1,
+    //     'annee' => 1
+    // ];
 
     // 🔗 Une présence appartient à une séance
     public function seance()
@@ -35,6 +41,6 @@ class Presence extends Model
         return $this->belongsTo(Apprenant::class);
     }
 
-    
+
 
 }

@@ -37,4 +37,18 @@ class Metier extends Model
     {
         return $this->hasOne(\App\Models\ResponsableMetier::class, 'metier_id');
     }
+     public function devoirs()
+    {
+        return $this->hasMany(Devoir::class);
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+   
+
+
+
 }
