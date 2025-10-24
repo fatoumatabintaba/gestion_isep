@@ -70,9 +70,13 @@ function LoginPage() {
         redirectPath = '/dashboard/chef';
       } else if (user.role === 'admin') {
         redirectPath = '/admin';
-      }
+      }else if (user.role === 'responsable_metier') { // ✅ NOUVEAU CAS
+  redirectPath = '/dashboard/enseignant'; // Il verra le bouton spécial
+}
 
-      console.log('Redirection vers:', redirectPath); // Pour debug
+      // console.log('Redirection vers:', redirectPath);
+      //  // Pour debug
+      console.log('🎯 Redirection vers:', redirectPath, '| Rôle:', user.role);
       
       // ✅ CORRECTION : Utiliser navigate au lieu de window.location.href
       navigate(redirectPath, { replace: true });

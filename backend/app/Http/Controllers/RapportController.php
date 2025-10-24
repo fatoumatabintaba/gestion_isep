@@ -187,37 +187,62 @@ class RapportController extends Controller
      */
 
     // Envoyer un rapport au chef de département
-   public function envoyerAuChefDepartement(Request $request)
+  public function envoyerAuChefDepartement(Request $request)
 {
     \Log::info('🎯 DEBUT envoyerAuChefDepartement');
     \Log::info('📦 Données reçues:', $request->all());
 
     try {
-        \Log::info('🔑 Vérification auth...');
         $user = Auth::user();
         \Log::info('👤 Utilisateur:', ['id' => $user->id, 'name' => $user->name]);
 
-        \Log::info('✅ Appel store()...');
-        $result = $this->store($request);
+        // ✅ CORRECTION : Validation adaptée aux données du frontend
+        $validated = $request->validate([
+            'metier' => 'required|string|max:255',
+            'code_metier' => 'required|string|max:10',
+            'coordinateur' => 'required|string|max:255',
+            'date_soumission' => 'required|date',
+            'periode' => 'required|string|max:255',
+            'statistiques' => 'required|array',
+            'justificatifs_traites' => 'required|integer|min:0',
+            'filtres_appliques' => 'sometimes|array'
+        ]);
 
-        \Log::info('📄 Rapport créé avec succès');
-        return $result;
+        // ✅ CORRECTION : Création directe sans appeler store()
+        $rapport = Rapport::create([
+            'user_id' => $user->id,
+            'metier' => $validated['metier'],
+            'code_metier' => $validated['code_metier'],
+            'statistiques' => $validated['statistiques'],
+            'periode' => $validated['periode'],
+            'justificatifs_traites' => $validated['justificatifs_traites'],
+            'statut' => 'en_attente',
+            'date_soumission' => $validated['date_soumission'] // ✅ Utilise la date du frontend
+        ]);
+
+        $rapport->load('user:id,name,email');
+
+        \Log::info('📄 Rapport créé avec succès', ['id' => $rapport->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rapport envoyé au chef de département avec succès',
+            'data' => $rapport
+        ], 201);
 
     } catch (\Exception $e) {
-        \Log::error('💥 ERREUR CRITIQUE dans envoyerAuChefDepartement:', [
+        \Log::error('💥 ERREUR dans envoyerAuChefDepartement:', [
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
+            'line' => $e->getLine()
         ]);
 
         return response()->json([
             'success' => false,
-            'error' => 'Erreur serveur: ' . $e->getMessage()
+            'error' => 'Erreur lors de l\'envoi du rapport: ' . $e->getMessage()
         ], 500);
     }
 }
-
     // Récupérer les rapports pour le chef de département
     public function getRapportsPourChefDepartement()
     {

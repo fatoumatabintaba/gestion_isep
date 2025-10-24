@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Calendar, Users, BookOpen, Plus } from 'lucide-react';
+import { CheckCircle, Calendar, Users, BookOpen, Plus, Search, Mail } from 'lucide-react';
 import LogoutButton from '../components/LogoutButton';
 import axios from 'axios';
 
 function MarquerPresences() {
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // 🔒 Vérification au chargement du composant
+  // 🔒 Vérification au chargement du composant - CORRIGÉ
   useEffect(() => {
-    if (!user || user.role !== 'enseignant') {
-      alert('❌ Accès réservé aux enseignants.');
+    // ✅ CORRECTION : Autoriser enseignants ET responsables métier
+    const rolesAutorises = ['enseignant', 'responsable_metier'];
+    
+    if (!user || !rolesAutorises.includes(user.role)) {
+      alert('❌ Accès réservé aux enseignants et responsables métier.');
       window.location.href = '/login';
       return;
     }
@@ -17,20 +20,16 @@ function MarquerPresences() {
   }, [user]);
 
   const [metiers] = useState([
-    { id: 1, nom: 'RT - Réseau Télécommunication', logo: 'RT' },
-    { id: 2, nom: 'ASRI - Administration Systèmes & Réseaux', logo: 'ASRI' },
-    { id: 3, nom: 'DWM - Développement Web & Mobile', logo: 'DWM' }
+    { id: 1, nom: 'DWM - Développement Web & Mobile', logo: 'DWM' },
+    { id: 2, nom: 'RT - Réseau Télécommunication', logo: 'RT' },
+    { id: 3, nom: 'ASRI - Administration Systèmes & Réseaux', logo: 'ASRI' }
   ]);
 
   const [apprenants, setApprenants] = useState([]);
   const [selected, setSelected] = useState({
     nom_seance: '',
     metier_id: '',
-<<<<<<< HEAD
     uea_nom: '',
-=======
-    uea_nom: '', // ✅ CHANGÉ : uea_nom au lieu de uea_id
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     date: new Date().toISOString().split('T')[0],
     annee: '',
     heure_debut: '08:00',
@@ -43,6 +42,8 @@ function MarquerPresences() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [creatingSeance, setCreatingSeance] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sendingEmails, setSendingEmails] = useState(false);
 
   const getLogoColors = (logo) => {
     switch (logo) {
@@ -63,8 +64,116 @@ function MarquerPresences() {
     }
   };
 
+  // ✅ Fonction pour normaliser les données des apprenants
+  const normaliserApprenant = (apprenant) => {
+    console.log('🔍 Données brutes apprenant:', apprenant);
+    
+    // Gestion des différents formats possibles
+    let nom = '';
+    let prenom = '';
+    let email = '';
+    let annee = '';
+    let id = apprenant.id;
+
+    // Essayer différents formats de nom
+    if (apprenant.nom && apprenant.prenom) {
+      nom = apprenant.nom;
+      prenom = apprenant.prenom;
+    } else if (apprenant.name) {
+      // Si le backend envoie un champ "name" unique
+      const nameParts = apprenant.name.split(' ');
+      if (nameParts.length >= 2) {
+        prenom = nameParts[0];
+        nom = nameParts.slice(1).join(' ');
+      } else {
+        nom = apprenant.name;
+      }
+    } else if (apprenant.nom_complet) {
+      const nameParts = apprenant.nom_complet.split(' ');
+      if (nameParts.length >= 2) {
+        prenom = nameParts[0];
+        nom = nameParts.slice(1).join(' ');
+      } else {
+        nom = apprenant.nom_complet;
+      }
+    } else if (apprenant.full_name) {
+      const nameParts = apprenant.full_name.split(' ');
+      if (nameParts.length >= 2) {
+        prenom = nameParts[0];
+        nom = nameParts.slice(1).join(' ');
+      } else {
+        nom = apprenant.full_name;
+      }
+    }
+
+    // Email
+    email = apprenant.email || apprenant.mail || '';
+
+    // Année
+    annee = apprenant.annee || apprenant.year || apprenant.promotion || '';
+
+    const apprenantNormalise = {
+      id: id,
+      nom: nom,
+      prenom: prenom,
+      email: email,
+      annee: annee,
+      // Garder les données originales pour debug
+      _raw: apprenant
+    };
+
+    console.log('✅ Apprenant normalisé:', apprenantNormalise);
+    return apprenantNormalise;
+  };
+
+  // ✅ Fonction pour envoyer les emails d'absence
+  const envoyerEmailsAbsence = async (seanceId, absents) => {
+    if (absents.length === 0) return;
+
+    try {
+      setSendingEmails(true);
+      console.log('📧 Début envoi emails absence:', {
+        seanceId,
+        absents: absents.map(a => ({ id: a.apprenant_id, nom: a.nom }))
+      });
+
+      const token = localStorage.getItem('token');
+      
+      const response = await axios.post(
+        `http://localhost:8000/api/seances/${seanceId}/notifier-absences`,
+        {
+          absents: absents
+        },
+        {
+          withCredentials: true,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      console.log('✅ Emails envoyés avec succès:', response.data);
+      return response.data;
+
+    } catch (err) {
+      console.error('❌ Erreur envoi emails:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      
+      // Ne pas bloquer le processus principal si l'envoi d'emails échoue
+      console.warn('⚠️ Échec envoi emails, mais processus principal continue');
+      return null;
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
   // ✅ Charger les apprenants
-  const chargerApprenants = async (metierId, annee) => {
+  const chargerApprenants = async (metierId, annee, searchTerm = '') => {
     if (!metierId) {
       setApprenants([]);
       setPresences({});
@@ -73,6 +182,13 @@ function MarquerPresences() {
 
     setLoading(true);
     try {
+      console.log('🔍 CHARGEMENT APPRENANTS - Paramètres:', {
+        metierId,
+        metierNom: metiers.find(m => m.id == metierId)?.nom,
+        annee,
+        searchTerm
+      });
+
       await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
 
       const token = localStorage.getItem('token');
@@ -81,6 +197,11 @@ function MarquerPresences() {
       if (annee) {
         url += `&annee=${annee}`;
       }
+      if (searchTerm) {
+        url += `&search=${encodeURIComponent(searchTerm)}`;
+      }
+
+      console.log('🔍 URL complète:', url);
 
       const res = await axios.get(url, {
         headers: {
@@ -89,10 +210,10 @@ function MarquerPresences() {
         withCredentials: true
       });
 
+      console.log('🔍 RÉPONSE BACKEND BRUTE:', res.data);
+
       const apprenantsList = res.data.apprenants || res.data || [];
-<<<<<<< HEAD
-      
-      // ✅ VÉRIFICATION que les données sont valides
+
       if (!Array.isArray(apprenantsList)) {
         console.error('❌ Format de réponse invalide:', res.data);
         setApprenants([]);
@@ -100,31 +221,28 @@ function MarquerPresences() {
         return;
       }
 
-      console.log('✅ Apprenants chargés:', apprenantsList.map(a => ({ id: a.id, nom: `${a.prenom} ${a.nom}` })));
+      // ✅ NORMALISER LES DONNÉES
+      const apprenantsNormalises = apprenantsList.map(normaliserApprenant);
       
-      setApprenants(apprenantsList);
+      console.log('✅ Apprenants normalisés:', apprenantsNormalises);
+      
+      setApprenants(apprenantsNormalises);
 
-      // Initialiser les présences seulement pour les apprenants valides
       const initPresences = {};
-      apprenantsList.forEach(a => {
-        if (a.id) { // ✅ Vérifie que l'ID existe
+      apprenantsNormalises.forEach(a => {
+        if (a.id) {
           initPresences[a.id] = 'present';
         }
       });
       setPresences(initPresences);
 
-=======
-      setApprenants(apprenantsList);
-
-      // Initialiser toutes les présences à "présent" par défaut
-      const initPresences = {};
-      apprenantsList.forEach(a => {
-        initPresences[a.id] = 'present';
-      });
-      setPresences(initPresences);
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     } catch (err) {
-      console.error('Erreur lors du chargement des apprenants:', err.response?.data || err);
+      console.error('❌ ERREUR DÉTAILLÉE:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+        url: err.config?.url
+      });
       setApprenants([]);
       setPresences({});
       alert('❌ Impossible de charger les apprenants.');
@@ -135,23 +253,35 @@ function MarquerPresences() {
 
   // ✅ Gestion des changements
   const handleMetierChange = (metierId) => {
+    console.log('🎯 Métier sélectionné:', {
+      id: metierId,
+      nom: metiers.find(m => m.id == metierId)?.nom
+    });
+    
     setSelected(prev => ({ 
       ...prev, 
       metier_id: metierId
     }));
-    chargerApprenants(metierId, selected.annee);
+    chargerApprenants(metierId, selected.annee, searchTerm);
   };
 
   const handleAnneeChange = (e) => {
     const anneeValue = e.target.value;
     setSelected(prev => ({ ...prev, annee: anneeValue }));
-    chargerApprenants(selected.metier_id, anneeValue);
+    chargerApprenants(selected.metier_id, anneeValue, searchTerm);
   };
 
-<<<<<<< HEAD
-=======
-  // ✅ CHANGÉ : Saisie manuelle de l'UEA
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
+  // ✅ Gestion de la recherche
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    // Debounce pour éviter trop de requêtes
+    if (selected.metier_id) {
+      chargerApprenants(selected.metier_id, selected.annee, value);
+    }
+  };
+
   const handleUeaChange = (e) => {
     setSelected(prev => ({ ...prev, uea_nom: e.target.value }));
   };
@@ -188,7 +318,6 @@ function MarquerPresences() {
     setPresences(prev => ({ ...prev, [id]: statut }));
   };
 
-  // ✅✅✅ FONCTION SIMPLIFIÉE - UEA SAISIE MANUELLEMENT
   const creerSeance = async () => {
     if (!selected.nom_seance || !selected.metier_id || !selected.uea_nom) {
       alert('Veuillez remplir le nom de séance, le métier et le nom de l\'UEA.');
@@ -199,25 +328,22 @@ function MarquerPresences() {
       setCreatingSeance(true);
       
       console.log('🟡 Début de la création de séance...');
+      console.log('📋 Détails de la séance:', {
+        nom: selected.nom_seance,
+        metier_id: selected.metier_id,
+        metier_nom: metiers.find(m => m.id == selected.metier_id)?.nom,
+        uea_nom: selected.uea_nom
+      });
       
-      // Récupérer le cookie CSRF
       await axios.get('http://localhost:8000/sanctum/csrf-cookie', { 
         withCredentials: true 
       });
-      console.log('✅ Cookie CSRF récupéré');
 
       const token = localStorage.getItem('token');
-      
-<<<<<<< HEAD
+
       const seanceData = {
         nom: selected.nom_seance,
         uea_nom: selected.uea_nom,
-=======
-      // ✅ STRUCTURE SIMPLIFIÉE - UEA en texte
-      const seanceData = {
-        nom: selected.nom_seance,
-        uea_nom: selected.uea_nom, // ✅ Texte libre au lieu de ID
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
         enseignant_id: user.id,
         salle: selected.salle,
         date: selected.date,
@@ -226,22 +352,12 @@ function MarquerPresences() {
         duree: selected.duree,
         type: selected.type,
         statut: 'programmee',
-<<<<<<< HEAD
         metier_id: selected.metier_id,
         annee: selected.annee || '2'
       };
 
       console.log('📤 Envoi des données de séance:', seanceData);
 
-=======
-        metier_id: selected.metier_id, // ✅ Ajout du métier pour faciliter
-        annee: selected.annee || '2'   // ✅ Ajout de l'année
-      };
-
-      console.log('📤 Envoi des données de séance (simplifié):', seanceData);
-
-      // Création de la séance
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
       const response = await axios.post(
         'http://localhost:8000/api/seances', 
         seanceData, 
@@ -256,7 +372,13 @@ function MarquerPresences() {
       );
 
       console.log('✅ Séance créée:', response.data);
-      return response.data.seance;
+      
+      if (response.data && (response.data.seance || response.data.id)) {
+        return response.data.seance || response.data;
+      } else {
+        console.error('❌ Format de réponse inattendu:', response.data);
+        return null;
+      }
 
     } catch (err) {
       console.error('❌ Erreur lors de la création de la séance:', {
@@ -265,7 +387,10 @@ function MarquerPresences() {
         message: err.message
       });
       
-      if (err.response?.data?.errors) {
+      if (err.response?.status === 500) {
+        console.error('🔍 Détails erreur 500:', err.response.data);
+        alert('❌ Erreur serveur (500). Vérifiez que l\'UEA existe dans la base de données.');
+      } else if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         let errorMessage = 'Erreurs de validation:\n';
         Object.keys(errors).forEach(key => {
@@ -284,11 +409,6 @@ function MarquerPresences() {
     }
   };
 
-<<<<<<< HEAD
-  // ✅✅✅ FONCTION PRINCIPALE CORRIGÉE - FILTRAGE AVANT ENVOI
-=======
-  // ✅✅✅ FONCTION PRINCIPALE
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -308,55 +428,70 @@ function MarquerPresences() {
     }
 
     try {
-      // 1. Créer la séance d'abord
       const nouvelleSeance = await creerSeance();
       
-      if (!nouvelleSeance || !nouvelleSeance.id) {
-        console.error('❌ Impossible de créer la séance ou ID manquant');
+      if (!nouvelleSeance || (!nouvelleSeance.id && !nouvelleSeance.seance?.id)) {
+        console.error('❌ Impossible de créer la séance ou ID manquant. Réponse:', nouvelleSeance);
+        alert('❌ Impossible de créer la séance. Vérifiez que l\'UEA existe dans la base de données.');
         return;
       }
 
-      const seanceId = nouvelleSeance.id;
+      const seanceId = nouvelleSeance.id || nouvelleSeance.seance?.id;
       console.log('🎯 Séance créée avec ID:', seanceId);
 
-<<<<<<< HEAD
-      // 2. ✅ CORRECTION : Filtrer les apprenants valides AVANT même de construire les données
+      if (!seanceId) {
+        console.error('❌ ID de séance manquant dans la réponse:', nouvelleSeance);
+        alert('❌ ID de séance manquant. Impossible d\'enregistrer les présences.');
+        return;
+      }
+
       const token = localStorage.getItem('token');
-      
-      // Récupérer les IDs d'apprenants valides (ceux qui existent vraiment)
       const apprenantIdsValides = apprenants.map(a => a.id);
       
       console.log('🔍 VÉRIFICATION AVANT ENVOI:', {
+        'Métier': metiers.find(m => m.id == selected.metier_id)?.nom,
         'Apprenants chargés': apprenants.map(a => ({ id: a.id, nom: `${a.prenom} ${a.nom}` })),
         'IDs valides': apprenantIdsValides,
         'State presences': presences
       });
 
-      // ✅ FILTRER : Ne garder que les présences dont l'ID existe dans apprenantIdsValides
-      const presencesAEnvoyer = Object.keys(presences)
+      // ✅ Préparer les données des présences et identifier les absents
+      const presencesAEnvoyer = [];
+      const absents = [];
+
+      Object.keys(presences)
         .map(id => parseInt(id))
-        .filter(id => {
-          const estValide = apprenantIdsValides.includes(id);
-          if (!estValide) {
-            console.warn(`⚠️ ID ${id} filtré - n'existe pas dans les apprenants chargés`);
+        .filter(id => apprenantIdsValides.includes(id))
+        .forEach(id => {
+          const statut = presences[id];
+          const apprenant = apprenants.find(a => a.id === id);
+          
+          presencesAEnvoyer.push({
+            apprenant_id: id,
+            statut: statut,
+            commentaire: ''
+          });
+
+          // ✅ Identifier les absents pour envoi d'email
+          if (statut === 'absent' && apprenant && apprenant.email) {
+            absents.push({
+              apprenant_id: id,
+              nom: `${apprenant.prenom} ${apprenant.nom}`,
+              email: apprenant.email,
+              seance_nom: selected.nom_seance,
+              date: selected.date,
+              uea_nom: selected.uea_nom,
+              enseignant: user.name
+            });
           }
-          return estValide;
-        })
-        .map(id => ({
-          apprenant_id: id,
-          statut: presences[id],
-          commentaire: ''
-        }));
+        });
 
       console.log('📋 RÉSULTAT FILTRAGE:', {
         'Avant filtrage': Object.keys(presences).map(id => parseInt(id)),
         'Après filtrage': presencesAEnvoyer.map(p => p.apprenant_id),
-        'IDs filtrés (invalides)': Object.keys(presences)
-          .map(id => parseInt(id))
-          .filter(id => !apprenantIdsValides.includes(id))
+        'Absents identifiés': absents
       });
 
-      // Vérifier qu'il reste des présences valides
       if (presencesAEnvoyer.length === 0) {
         alert('❌ Aucun apprenant valide à enregistrer. Vérifiez la sélection.');
         return;
@@ -364,32 +499,17 @@ function MarquerPresences() {
 
       const requestData = {
         date: selected.date,
-        presences: presencesAEnvoyer  // ✅ Utilise les présences filtrées
+        presences: presencesAEnvoyer
       };
 
       console.log('📤 DONNEES ENVOYEES (filtrées):', {
         seanceId: seanceId,
         data: requestData,
-        nombrePresences: requestData.presences.length
+        nombrePresences: requestData.presences.length,
+        absents: absents.length
       });
 
-      // 3. Envoyer les présences FILTRÉES
-=======
-      // 2. Enregistrer les présences avec l'ID de la séance créée
-      const token = localStorage.getItem('token');
-      
-      const requestData = {
-        date: selected.date,
-        presences: Object.keys(presences).map(id => ({
-          apprenant_id: parseInt(id),
-          statut: presences[id],
-          commentaire: ''
-        }))
-      };
-
-      console.log('📤 Enregistrement des présences pour séance:', seanceId);
-
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
+      // ✅ Étape 1: Enregistrer les présences
       const response = await axios.post(
         `http://localhost:8000/api/seances/${seanceId}/presences/multiple`, 
         requestData, 
@@ -403,33 +523,40 @@ function MarquerPresences() {
         }
       );
 
-<<<<<<< HEAD
       console.log('✅ RÉPONSE DU SERVEUR:', response.data);
-=======
-      console.log('✅ Réponse du serveur:', response.data);
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
-      setSuccess("✅ Séance créée et présences enregistrées avec succès !");
+
+      // ✅ Étape 2: Envoyer les emails aux absents (si nécessaire)
+      if (absents.length > 0) {
+        console.log(`📧 Envoi de ${absents.length} email(s) d'absence...`);
+        
+        const emailResult = await envoyerEmailsAbsence(seanceId, absents);
+        
+        if (emailResult) {
+          setSuccess(`✅ Séance créée et présences enregistrées ! ${absents.length} email(s) d'absence envoyé(s).`);
+        } else {
+          setSuccess(`✅ Séance créée et présences enregistrées ! ⚠️ Les emails d'absence n'ont pas pu être envoyés.`);
+        }
+      } else {
+        setSuccess("✅ Séance créée et présences enregistrées avec succès !");
+      }
+
       setTimeout(() => setSuccess(''), 5000);
       
-      // Réinitialiser le formulaire après succès
+      // ✅ Réinitialiser le formulaire
       setSelected(prev => ({
         ...prev,
         nom_seance: '',
         uea_nom: ''
       }));
+      setSearchTerm('');
       
     } catch (err) {
-<<<<<<< HEAD
       console.error('❌ ERREUR DETAILLEE:', {
-=======
-      console.error('❌ Erreur lors de l\'enregistrement:', {
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
         status: err.response?.status,
         data: err.response?.data,
         message: err.message
       });
       
-<<<<<<< HEAD
       if (err.response?.data?.errors) {
         const errors = err.response.data.errors;
         let errorMessage = 'Erreurs de validation:\n\n';
@@ -442,16 +569,11 @@ function MarquerPresences() {
       } else {
         alert('❌ Erreur lors de l\'enregistrement des présences.');
       }
-=======
-      const errorMessage = err.response?.data?.message || 'Erreur lors de l\'enregistrement des présences.';
-      alert(`❌ ${errorMessage}`);
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header */}
       <header className="bg-gradient-to-r from-indigo-900 via-blue-900 to-indigo-900 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -497,7 +619,6 @@ function MarquerPresences() {
 
           <form onSubmit={handleSubmit}>
             <div className="grid md:grid-cols-6 gap-4 mb-8 p-6">
-              {/* Nom de la séance */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Nom de la séance *</span>
@@ -512,7 +633,6 @@ function MarquerPresences() {
                 />
               </div>
 
-              {/* Métier */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Métier *</span>
@@ -530,11 +650,6 @@ function MarquerPresences() {
                 </select>
               </div>
 
-<<<<<<< HEAD
-              {/* UEA */}
-=======
-              {/* ✅ CHANGÉ : UEA en saisie manuelle */}
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Nom de l'UEA *</span>
@@ -549,7 +664,6 @@ function MarquerPresences() {
                 />
               </div>
 
-              {/* Année */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Année</span>
@@ -565,7 +679,6 @@ function MarquerPresences() {
                 </select>
               </div>
 
-              {/* Date */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Date *</span>
@@ -579,7 +692,6 @@ function MarquerPresences() {
                 />
               </div>
 
-              {/* Salle */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <span>Salle *</span>
@@ -594,7 +706,6 @@ function MarquerPresences() {
                 />
               </div>
 
-              {/* Heures et Type */}
               <div className="grid grid-cols-2 gap-2 md:col-span-2">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -653,17 +764,48 @@ function MarquerPresences() {
               </div>
             </div>
 
-            {success && (
-              <div className="mb-6 mx-6 px-4 py-3 rounded-xl bg-green-100 text-green-800 border border-green-200">
-                {success}
+            {/* ✅ Barre de recherche */}
+            {selected.metier_id && (
+              <div className="px-6 pb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Search size={18} className="text-purple-600" />
+                    <span>Rechercher un apprenant (nom ou prénom)</span>
+                  </div>
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  placeholder="Tapez un nom ou prénom pour filtrer la liste..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                />
+                {searchTerm && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    🔍 Recherche active : "{searchTerm}" • {apprenants.length} résultat(s)
+                  </p>
+                )}
               </div>
             )}
 
-<<<<<<< HEAD
-            {/* Section apprenants */}
-=======
-            {/* Le reste du code pour les présences reste identique */}
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
+            {success && (
+              <div className="mb-6 mx-6 px-4 py-3 rounded-xl bg-green-100 text-green-800 border border-green-200">
+                <div className="flex items-center space-x-2">
+                  {sendingEmails ? (
+                    <>
+                      <div className="animate-spin w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
+                      <span>Envoi des emails en cours...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} />
+                      <span>{success}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-2xl p-12 text-center mx-6 mb-6">
                 <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -676,10 +818,15 @@ function MarquerPresences() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">Aucun apprenant trouvé</h3>
                 <p className="text-gray-600">
-                  {selected.annee 
-                    ? `Aucun apprenant en ${selected.annee} pour ce métier`
-                    : 'Aucun apprenant pour ce métier'
+                  {searchTerm 
+                    ? `Aucun résultat pour "${searchTerm}"`
+                    : selected.annee 
+                      ? `Aucun apprenant en année ${selected.annee} pour ce métier`
+                      : 'Aucun apprenant pour ce métier'
                   }
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Métier: {metiers.find(m => m.id == selected.metier_id)?.nom}
                 </p>
               </div>
             ) : apprenants.length === 0 ? (
@@ -700,7 +847,11 @@ function MarquerPresences() {
                   <div className="flex flex-wrap items-center justify-between">
                     <div className="text-sm font-medium text-gray-700">
                       {apprenants.length} apprenant(s) trouvé(s)
-                      {selected.annee && ` en ${selected.annee}`}
+                      {selected.annee && ` en année ${selected.annee}`}
+                      {searchTerm && ` pour "${searchTerm}"`}
+                      <span className="ml-2 text-indigo-600 font-bold">
+                        ({metiers.find(m => m.id == selected.metier_id)?.nom})
+                      </span>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
                       <div className="flex items-center space-x-2">
@@ -731,7 +882,7 @@ function MarquerPresences() {
                         <th className="px-6 py-4 text-center font-semibold">Présent</th>
                         <th className="px-6 py-4 text-center font-semibold">Absent</th>
                         <th className="px-6 py-4 text-center font-semibold">Retard</th>
-                        <th className="px-6 py-4 text-center font-semibold">Demi-journée</th>
+                        <th className="px-6py-4 text-center font-semibold">Demi-journée</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -746,12 +897,14 @@ function MarquerPresences() {
                                 {(a.prenom?.charAt(0) || a.nom?.charAt(0) || 'A').toUpperCase()}
                               </div>
                               <div>
+                                {/* ✅ AFFICHAGE SIMPLIFIÉ : seulement nom, prénom et année */}
                                 <span className="font-medium text-gray-900 block">
                                   {a.prenom} {a.nom}
                                 </span>
                                 <span className="text-sm text-gray-500">
-                                  {a.annee} • {a.email}
+                                  Année {a.annee}
                                 </span>
+                                {/* ❌ SUPPRIMÉ : Affichage de l'email et des données de debug */}
                               </div>
                             </div>
                           </td>
@@ -783,16 +936,39 @@ function MarquerPresences() {
                   </table>
                 </div>
 
-                <div className="mt-8 flex justify-end mx-6 mb-6">
+                <div className="mt-8 flex flex-col items-end mx-6 mb-6 space-y-4">
+                  {/* Message d'état */}
+                  {!selected.nom_seance?.trim() && (
+                    <p className="text-red-600 text-sm">⚠️ Le nom de la séance est requis</p>
+                  )}
+                  {!selected.metier_id && (
+                    <p className="text-red-600 text-sm">⚠️ Veuillez sélectionner un métier</p>
+                  )}
+                  {!selected.uea_nom?.trim() && (
+                    <p className="text-red-600 text-sm">⚠️ Le nom de l'UEA est requis</p>
+                  )}
+                  {apprenants.length === 0 && selected.metier_id && (
+                    <p className="text-red-600 text-sm">⚠️ Aucun apprenant trouvé pour ce métier</p>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={!selected.nom_seance || !selected.metier_id || !selected.uea_nom || apprenants.length === 0 || creatingSeance}
-                    className="flex items-center space-x-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={
+                      !selected.nom_seance?.trim() || 
+                      !selected.metier_id || 
+                      !selected.uea_nom?.trim() || 
+                      apprenants.length === 0 || 
+                      creatingSeance ||
+                      sendingEmails
+                    }
+                    className="flex items-center space-x-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    {creatingSeance ? (
+                    {(creatingSeance || sendingEmails) ? (
                       <>
                         <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
-                        <span>Création en cours...</span>
+                        <span>
+                          {creatingSeance ? 'Création en cours...' : 'Envoi des emails...'}
+                        </span>
                       </>
                     ) : (
                       <>

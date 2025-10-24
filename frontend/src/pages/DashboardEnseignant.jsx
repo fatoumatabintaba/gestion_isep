@@ -12,13 +12,15 @@ import {
   Navbar,
   Nav,
   Alert,
-  Offcanvas
+  Offcanvas,
+  Badge
 } from 'react-bootstrap';
 import api from '../services/api';
 import LogoutButton from '../components/LogoutButton';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 function DashboardEnseignant() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [devoirs, setDevoirs] = useState([]);
   const [soumissions, setSoumissions] = useState([]);
@@ -29,6 +31,12 @@ function DashboardEnseignant() {
   const [activeSection, setActiveSection] = useState('accueil');
   const [showSidebar, setShowSidebar] = useState(false);
   const [showDevoirs, setShowDevoirs] = useState(false);
+  
+  // États pour les cours en ligne
+  const [showCoursModal, setShowCoursModal] = useState(false);
+  const [coursEnLigne, setCoursEnLigne] = useState([]);
+  const [showCoursEnLigne, setShowCoursEnLigne] = useState(false);
+  const [creatingMeeting, setCreatingMeeting] = useState(false);
 
   const [newDevoir, setNewDevoir] = useState({
     titre: '',
@@ -38,15 +46,29 @@ function DashboardEnseignant() {
     coefficient: 1,
     fichier_sujet: null,
     type_sujet: 'texte',
-    metier: '', // Nouveau champ : métier concerné
-    annee: ''   // Nouveau champ : année concernée
+    metier: '',
+    annee: ''
   });
 
-  // Liste des métiers et années disponibles
+  const [newCours, setNewCours] = useState({
+    nom: '',
+    uea_nom: '',
+    metier_id: '',
+    annee: '',
+    date: '',
+    heure_debut: '',
+    heure_fin: '',
+    duree: '4h',
+    lien_reunion: '',
+    plateforme: 'google_meet',
+    description: '',
+    creer_automatiquement: true
+  });
+
   const metiers = [
-    { value: 'DWM', label: 'DWM - Développement Web & Mobile' },
-    { value: 'RT', label: 'RT - Réseaux & Télécom' },
-    { value: 'ASRI', label: 'ASRI - Administration Système & Réseau' }
+    { id: 1, value: 'DWM', label: 'DWM - Développement Web & Mobile' },
+    { id: 2, value: 'RT', label: 'RT - Réseaux & Télécom' },
+    { id: 3, value: 'ASRI', label: 'ASRI - Administration Système & Réseau' }
   ];
 
   const annees = [
@@ -54,7 +76,38 @@ function DashboardEnseignant() {
     { value: '2', label: 'Deuxième année' }
   ];
 
-  // === Charger utilisateur + données ===
+  const plateformes = [
+    { value: 'google_meet', label: '🎥 Google Meet', icon: '🎥' },
+    { value: 'zoom', label: '📹 Zoom', icon: '📹' },
+    { value: 'teams', label: '💼 Microsoft Teams', icon: '💼' },
+    { value: 'autre', label: '🔗 Autre', icon: '🔗' }
+  ];
+
+  const plateformesCodes = {
+    'google_meet': 'GM',
+    'zoom': 'ZM', 
+    'teams': 'TM',
+    'autre': 'OT'
+  };
+
+  const isResponsableMetier = (user) => {
+    if (!user) return false;
+    
+    console.log("🔍 Vérification rôle responsable_metier:", user?.role);
+    
+    if (typeof user.role === 'string') {
+      return user.role === 'responsable_metier' || 
+             user.role.includes('responsable_metier');
+    }
+    
+    return false;
+  };
+
+  const handleGoToResponsableDashboard = () => {
+    console.log("🔄 Navigation vers Dashboard Responsable Métier");
+    navigate('/dashboard/responsable-metier');
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
@@ -67,13 +120,15 @@ function DashboardEnseignant() {
     try {
       const userData = JSON.parse(userStr);
 
-      if (userData.role !== 'enseignant') {
-        alert("Accès refusé : vous n'êtes pas un enseignant");
+      if (userData.role !== 'enseignant' && userData.role !== 'responsable_metier') {
+        alert("Accès refusé : vous n'êtes pas un enseignant ou responsable métier");
         if (userData.role === 'apprenant') {
           const metierSlug = slugify(userData.metier);
           window.location.href = `/dashboard/apprenant/${metierSlug}/annee-${userData.annee}`;
         } else if (userData.role === 'chef_departement') {
           window.location.href = '/dashboard/chef';
+        } else if (userData.role === 'coordinateur') {
+          window.location.href = '/dashboard/coordinateur';
         } else {
           window.location.href = '/';
         }
@@ -81,6 +136,8 @@ function DashboardEnseignant() {
       }
 
       setUser(userData);
+      console.log("✅ Accès DashboardEnseignant autorisé pour:", userData.role);
+      console.log("🔍 isResponsableMetier:", isResponsableMetier(userData));
     } catch (err) {
       console.error("Erreur parsing user data", err);
       localStorage.removeItem('user');
@@ -90,13 +147,45 @@ function DashboardEnseignant() {
     }
   }, []);
 
-  // Fonction pour charger les devoirs
+  // ✅ CORRECTION : Fonction fetchDevoirs améliorée
   const fetchDevoirs = async () => {
     try {
       const res = await api.get('/api/enseignant/devoirs');
-      setDevoirs(res.data);
+      
+      // ✅ CORRECTION : Debug pour voir les données reçues
+      console.log("📊 Données devoirs reçues:", res.data);
+      
+      // ✅ CORRECTION : Formater les données pour afficher correctement
+      const devoirsFormatted = res.data.map(devoir => {
+        console.log(`🔍 Devoir ${devoir.id}:`, {
+          metier: devoir.metier,
+          annee: devoir.annee,
+          fichier_consigne: devoir.fichier_consigne,
+          fichier_consigne_url: devoir.fichier_consigne_url
+        });
+        
+        return {
+          ...devoir,
+          // Utiliser les champs directement du backend
+          metier: devoir.metier || 'Non spécifié',
+          annee: devoir.annee || '?',
+          // S'assurer que le fichier est détecté correctement
+          hasFile: !!devoir.fichier_consigne
+        };
+      });
+      
+      setDevoirs(devoirsFormatted);
     } catch (err) {
       console.error('Erreur:', err.response?.data);
+    }
+  };
+
+  const fetchCoursEnLigne = async () => {
+    try {
+      const res = await api.get('/api/seances?type=en_ligne');
+      setCoursEnLigne(res.data || []);
+    } catch (err) {
+      console.error('Erreur chargement cours en ligne:', err.response?.data);
     }
   };
 
@@ -114,6 +203,10 @@ function DashboardEnseignant() {
 
   const handleChange = (e) => {
     setNewDevoir({ ...newDevoir, [e.target.name]: e.target.value });
+  };
+
+  const handleCoursChange = (e) => {
+    setNewCours({ ...newCours, [e.target.name]: e.target.value });
   };
 
   const handleFileChange = (e) => {
@@ -156,7 +249,6 @@ function DashboardEnseignant() {
     e.preventDefault();
     setUploading(true);
 
-    // Validation des champs métier et année
     if (!newDevoir.metier || !newDevoir.annee) {
       alert('❌ Veuillez sélectionner le métier et l\'année concernés.');
       setUploading(false);
@@ -172,8 +264,8 @@ function DashboardEnseignant() {
       formData.append('date_limite', newDevoir.date_limite);
       formData.append('coefficient', newDevoir.coefficient);
       formData.append('type_sujet', newDevoir.type_sujet);
-      formData.append('metier', newDevoir.metier); // Ajout du métier
-      formData.append('annee', newDevoir.annee);   // Ajout de l'année
+      formData.append('metier', newDevoir.metier);
+      formData.append('annee', newDevoir.annee);
 
       if (newDevoir.type_sujet === 'fichier' && newDevoir.fichier_sujet) {
         formData.append('fichier_sujet', newDevoir.fichier_sujet);
@@ -208,6 +300,106 @@ function DashboardEnseignant() {
     }
   };
 
+  const genererLienReunion = async (plateforme) => {
+    try {
+      setCreatingMeeting(true);
+      
+      const response = await api.post('/api/meetings/demo', {
+        plateforme: plateforme
+      });
+
+      if (response.data.success) {
+        setNewCours(prev => ({
+          ...prev,
+          lien_reunion: response.data.lien,
+          plateforme: plateforme
+        }));
+        alert(`✅ Lien ${plateforme} généré automatiquement !`);
+      } else {
+        alert('❌ Erreur lors de la génération du lien');
+      }
+    } catch (error) {
+      console.error('Erreur génération lien:', error);
+      alert('❌ Erreur lors de la génération du lien de réunion');
+    } finally {
+      setCreatingMeeting(false);
+    }
+  };
+
+  const handleSubmitCours = async (e) => {
+    e.preventDefault();
+    setUploading(true);
+
+    if (!newCours.metier_id || !newCours.annee) {
+      alert('❌ Veuillez sélectionner le métier et l\'année concernés.');
+      setUploading(false);
+      return;
+    }
+
+    if (!newCours.lien_reunion) {
+      alert('❌ Veuillez fournir un lien de réunion.');
+      setUploading(false);
+      return;
+    }
+
+    try {
+      const salle = `OL-${plateformesCodes[newCours.plateforme]}`;
+
+      const seanceData = {
+        nom: newCours.nom,
+        uea_nom: newCours.uea_nom,
+        metier_id: newCours.metier_id,
+        annee: newCours.annee,
+        enseignant_id: user.id,
+        date: newCours.date,
+        heure_debut: newCours.heure_debut,
+        heure_fin: newCours.heure_fin,
+        duree: newCours.duree,
+        type: 'en_ligne',
+        lien_reunion: newCours.lien_reunion,
+        statut: 'programmee',
+        salle: salle
+      };
+
+      const response = await api.post('/api/seances', seanceData);
+
+      alert('✅ Cours en ligne créé avec succès !');
+      
+      setNewCours({
+        nom: '',
+        uea_nom: '',
+        metier_id: '',
+        annee: '',
+        date: '',
+        heure_debut: '',
+        heure_fin: '',
+        duree: '4h',
+        lien_reunion: '',
+        plateforme: 'google_meet',
+        description: ''
+      });
+      
+      setShowCoursModal(false);
+      await fetchCoursEnLigne();
+    } catch (err) {
+      console.error('Erreur création cours en ligne:', err.response?.data);
+      
+      if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        let errorMessage = 'Erreurs de validation:\n';
+        Object.keys(errors).forEach(key => {
+          errorMessage += `• ${key}: ${errors[key].join(', ')}\n`;
+        });
+        alert(errorMessage);
+      } else {
+        alert('❌ Erreur lors de la création du cours en ligne: ' + 
+          (err.response?.data?.message || 'Vérifiez les données saisies'));
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -218,6 +410,13 @@ function DashboardEnseignant() {
     setActiveSection('devoirs');
     setShowDevoirs(true);
     await fetchDevoirs();
+    setShowSidebar(false);
+  };
+
+  const handleVoirCoursEnLigne = async () => {
+    setActiveSection('cours_en_ligne');
+    setShowCoursEnLigne(true);
+    await fetchCoursEnLigne();
     setShowSidebar(false);
   };
 
@@ -261,7 +460,11 @@ function DashboardEnseignant() {
     setShowSidebar(false);
   };
 
-  // Styles CSS pour les effets de survol en bleu
+  const handleCopierLien = (lien) => {
+    navigator.clipboard.writeText(lien);
+    alert('✅ Lien copié dans le presse-papier !');
+  };
+
   const cardHoverStyle = {
     transition: 'all 0.3s ease-in-out',
     cursor: 'pointer',
@@ -274,7 +477,6 @@ function DashboardEnseignant() {
     borderColor: '#007bff'
   };
 
-  // Fonction pour rendre le contenu principal
   const renderMainContent = () => {
     switch (activeSection) {
       case 'accueil':
@@ -289,7 +491,7 @@ function DashboardEnseignant() {
                   </p>
                   
                   <div className="row justify-content-center g-4">
-                    <div className="col-md-4 col-sm-6">
+                    <div className="col-md-3 col-sm-6">
                       <Card 
                         className="h-100 border-0 shadow-sm bg-white"
                         style={cardHoverStyle}
@@ -310,7 +512,7 @@ function DashboardEnseignant() {
                           </div>
                           <h5 className="text-primary">Gérer mes Devoirs</h5>
                           <p className="text-muted small flex-grow-1">
-                            Créer de nouveaux devoirs ou consulter ceux existants avec leurs soumissions
+                            Créer de nouveaux devoirs ou consulter ceux existants
                           </p>
                           <Button 
                             variant="primary" 
@@ -327,7 +529,45 @@ function DashboardEnseignant() {
                       </Card>
                     </div>
                     
-                    <div className="col-md-4 col-sm-6">
+                    <div className="col-md-3 col-sm-6">
+                      <Card 
+                        className="h-100 border-0 shadow-sm bg-white"
+                        style={cardHoverStyle}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = cardHoverEffect.transform;
+                          e.currentTarget.style.boxShadow = cardHoverEffect.boxShadow;
+                          e.currentTarget.style.borderColor = cardHoverEffect.borderColor;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+                          e.currentTarget.style.borderColor = '#e9ecef';
+                        }}
+                      >
+                        <Card.Body className="d-flex flex-column p-4">
+                          <div className="mb-3 text-primary" style={{ fontSize: '3rem' }}>
+                            🎥
+                          </div>
+                          <h5 className="text-primary">Cours en ligne</h5>
+                          <p className="text-muted small flex-grow-1">
+                            Organiser des cours via Google Meet, Zoom, etc.
+                          </p>
+                          <Button 
+                            variant="primary" 
+                            className="mt-auto"
+                            onClick={() => setShowCoursModal(true)}
+                            style={{
+                              borderRadius: '25px',
+                              padding: '10px 20px'
+                            }}
+                          >
+                            Créer un cours
+                          </Button>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                    
+                    <div className="col-md-3 col-sm-6">
                       <Card 
                         className="h-100 border-0 shadow-sm bg-white"
                         style={cardHoverStyle}
@@ -348,7 +588,7 @@ function DashboardEnseignant() {
                           </div>
                           <h5 className="text-primary">Marquer Présences</h5>
                           <p className="text-muted small flex-grow-1">
-                            Gérer les présences de vos apprenants et suivre leur assiduité
+                            Gérer les présences de vos apprenants
                           </p>
                           <Link to="/marquer-presences" className="mt-auto">
                             <Button 
@@ -366,7 +606,7 @@ function DashboardEnseignant() {
                       </Card>
                     </div>
                     
-                    <div className="col-md-4 col-sm-6">
+                    <div className="col-md-3 col-sm-6">
                       <Card 
                         className="h-100 border-0 shadow-sm bg-white"
                         style={cardHoverStyle}
@@ -387,7 +627,7 @@ function DashboardEnseignant() {
                           </div>
                           <h5 className="text-primary">Créer un Devoir</h5>
                           <p className="text-muted small flex-grow-1">
-                            Publier un nouveau devoir pour vos apprenants avec fichiers ou texte
+                            Publier un nouveau devoir pour vos apprenants
                           </p>
                           <Button 
                             variant="primary" 
@@ -408,6 +648,120 @@ function DashboardEnseignant() {
               </Card>
             </Col>
           </Row>
+        );
+
+      case 'cours_en_ligne':
+        return (
+          showCoursEnLigne && (
+            <Row className="mb-4">
+              <Col>
+                <Card className="shadow-sm border-0 bg-white">
+                  <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center py-3">
+                    <h5 className="mb-0">🎥 Mes Cours en Ligne</h5>
+                    <div>
+                      <Button 
+                        size="sm" 
+                        variant="light" 
+                        className="me-2"
+                        onClick={() => setShowSidebar(true)}
+                      >
+                        ☰ Menu
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline-light" 
+                        className="me-2"
+                        onClick={() => setShowCoursModal(true)}
+                      >
+                        + Nouveau cours
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="light" 
+                        onClick={() => {
+                          setShowCoursEnLigne(false);
+                          setActiveSection('accueil');
+                        }}
+                      >
+                        ✕ Fermer
+                      </Button>
+                    </div>
+                  </Card.Header>
+                  <Card.Body>
+                    {coursEnLigne.length === 0 ? (
+                      <Alert variant="primary" className="text-center py-4 bg-light border-0">
+                        <h6 className="mb-3 text-primary">Aucun cours en ligne programmé</h6>
+                        <p className="mb-0 text-muted">
+                          Créez votre premier cours en ligne avec Google Meet, Zoom ou Teams.
+                        </p>
+                      </Alert>
+                    ) : (
+                      <Table striped hover responsive className="mt-3">
+                        <thead className="table-primary">
+                          <tr>
+                            <th>Cours</th>
+                            <th>UEA</th>
+                            <th>Métier / Année</th>
+                            <th>Date & Heure</th>
+                            <th>Plateforme</th>
+                            <th>Lien</th>
+                            <th>Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {coursEnLigne.map(cours => (
+                            <tr key={cours.id}>
+                              <td>
+                                <strong className="text-primary">{cours.nom}</strong>
+                              </td>
+                              <td className="text-muted">{cours.uea_nom}</td>
+                              <td>
+                                <Badge bg="info">{cours.metier?.nom || 'N/A'}</Badge>
+                                {' '}
+                                <Badge bg="secondary">Année {cours.annee}</Badge>
+                              </td>
+                              <td>
+                                <small className="text-muted">
+                                  {new Date(cours.date).toLocaleDateString()}<br/>
+                                  {cours.heure_debut} - {cours.heure_fin}
+                                </small>
+                              </td>
+                              <td>
+                                <Badge bg="success">{cours.salle}</Badge>
+                              </td>
+                              <td>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline-primary"
+                                  onClick={() => handleCopierLien(cours.lien_reunion)}
+                                >
+                                  📋 Copier
+                                </Button>
+                                {' '}
+                                <a 
+                                  href={cours.lien_reunion} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm btn-primary"
+                                >
+                                  🔗 Ouvrir
+                                </a>
+                              </td>
+                              <td>
+                                <Badge bg={cours.statut === 'programmee' ? 'warning' : 'success'}>
+                                  {cours.statut}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    )}
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          )
         );
 
       case 'devoirs':
@@ -472,27 +826,37 @@ function DashboardEnseignant() {
                             <tr key={d.id}>
                               <td>
                                 <strong className="text-primary">{d.titre}</strong>
-                                {d.fichier_sujet && <span className="ms-1">📎</span>}
+                                {/* ✅ CORRECTION : Afficher l'icône fichier basé sur fichier_consigne */}
+                                {d.fichier_consigne && <span className="ms-1">📎</span>}
                               </td>
                               <td className="text-muted">{d.uea_nom || d.uea?.nom || 'N/A'}</td>
                               <td>
-                                <span className="badge bg-info">{d.metier || 'Non spécifié'}</span>
+                                {/* ✅ CORRECTION : Utiliser directement d.metier */}
+                                <span className="badge bg-info">{d.metier}</span>
                               </td>
                               <td>
-                                <span className="badge bg-secondary">Année {d.annee || '?'}</span>
+                                {/* ✅ CORRECTION : Utiliser directement d.annee */}
+                                <span className="badge bg-secondary">Année {d.annee}</span>
                               </td>
                               <td>
-                                <span className={`badge ${d.fichier_sujet ? 'bg-primary' : 'bg-secondary'}`}>
-                                  {d.fichier_sujet ? 'Fichier' : 'Texte'}
+                                {/* ✅ CORRECTION : Type basé sur fichier_consigne */}
+                                <span className={`badge ${d.fichier_consigne ? 'bg-primary' : 'bg-secondary'}`}>
+                                  {d.fichier_consigne ? 'Fichier' : 'Texte'}
                                 </span>
                               </td>
-                              <td className="text-muted">{new Date(d.date_limite).toLocaleDateString()}</td>
+                              <td className="text-muted">
+                                {new Date(d.date_limite).toLocaleDateString()}
+                                <br />
+                                <small className="text-warning">
+                                  {new Date(d.date_limite).toLocaleTimeString()}
+                                </small>
+                              </td>
                               <td>
                                 <span className="badge bg-primary">{d.coefficient}</span>
                               </td>
                               <td>
-                                <span className={`badge ${d.soumissions_count > 0 ? "bg-primary" : "bg-secondary"}`}>
-                                  {d.soumissions_count || 0}
+                                <span className={`badge ${d.soumissions_count > 0 ? "bg-success" : "bg-secondary"}`}>
+                                  {d.soumissions_count || 0} soumission(s)
                                 </span>
                               </td>
                               <td>
@@ -501,9 +865,21 @@ function DashboardEnseignant() {
                                   variant="outline-primary"
                                   onClick={() => handleVoirSoumissions(d)}
                                   disabled={!d.soumissions_count}
+                                  className="me-1"
                                 >
-                                  Voir
+                                  👁️ Voir
                                 </Button>
+                                {/* ✅ CORRECTION : Utiliser fichier_consigne_url au lieu de construire l'URL manuellement */}
+                                {d.fichier_consigne_url && (
+                                  <a 
+                                    href={d.fichier_consigne_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-sm btn-outline-success"
+                                  >
+                                    📥 Télécharger
+                                  </a>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -660,6 +1036,22 @@ function DashboardEnseignant() {
         <Container>
           <Navbar.Brand className="fw-bold">📚 Dashboard Enseignant</Navbar.Brand>
           <Nav className="ms-auto d-flex align-items-center">
+            {isResponsableMetier(user) && (
+              <Button 
+                variant="warning"
+                onClick={handleGoToResponsableDashboard}
+                className="me-2 d-flex align-items-center gap-1"
+                style={{ 
+                  borderRadius: '20px', 
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  padding: '8px 16px'
+                }}
+              >
+                🎯 Responsable Métier
+              </Button>
+            )}
+            
             <Button 
               variant="outline-light" 
               className="me-3"
@@ -668,7 +1060,8 @@ function DashboardEnseignant() {
               ☰ Menu
             </Button>
             <span className="text-white me-3">👤 {user?.name}</span>
-            <LogoutButton onLogout={handleLogout} />
+            {/* <LogoutButton onLogout={handleLogout} /> */}
+            <LogoutButton />
           </Nav>
         </Container>
       </Navbar>
@@ -711,6 +1104,19 @@ function DashboardEnseignant() {
                 
                 <button
                   className={`list-group-item list-group-item-action d-flex align-items-center ${
+                    activeSection === 'cours_en_ligne' ? 'active bg-primary text-white' : ''
+                  }`}
+                  onClick={handleVoirCoursEnLigne}
+                >
+                  <span className="me-2">🎥</span>
+                  Cours en ligne
+                  {coursEnLigne.length > 0 && (
+                    <span className="badge bg-success ms-auto">{coursEnLigne.length}</span>
+                  )}
+                </button>
+                
+                <button
+                  className={`list-group-item list-group-item-action d-flex align-items-center ${
                     activeSection === 'presences' ? 'active bg-primary text-white' : ''
                   }`}
                   onClick={() => handleNavigation('presences')}
@@ -729,12 +1135,24 @@ function DashboardEnseignant() {
                   <span className="me-2">➕</span>
                   Créer un Devoir
                 </button>
+
+                <button
+                  className="list-group-item list-group-item-action d-flex align-items-center"
+                  onClick={() => {
+                    setShowCoursModal(true);
+                    setShowSidebar(false);
+                  }}
+                >
+                  <span className="me-2">🎥</span>
+                  Créer un Cours en ligne
+                </button>
               </div>
               
               <div className="p-3 border-top bg-light">
                 <small className="text-muted">
                   <strong>📈 Statistiques :</strong><br />
                   • Devoirs créés: <span className="fw-bold text-primary">{devoirs.length}</span><br />
+                  • Cours en ligne: <span className="fw-bold text-success">{coursEnLigne.length}</span><br />
                   • Soumissions totales: <span className="fw-bold text-primary">
                     {devoirs.reduce((acc, d) => acc + (d.soumissions_count || 0), 0)}
                   </span>
@@ -749,7 +1167,6 @@ function DashboardEnseignant() {
         </Row>
       </Container>
 
-      {/* Footer bleu et blanc */}
       <footer className="bg-primary text-white mt-auto">
         <Container className="py-4">
           <Row className="align-items-center">
@@ -777,14 +1194,14 @@ function DashboardEnseignant() {
           <Row>
             <Col className="text-center">
               <small className="text-light">
-                Développé avec ❤️ pour une meilleure expérience éducative
+                Développé avec ❤ pour une meilleure expérience éducative
               </small>
             </Col>
           </Row>
         </Container>
       </footer>
 
-      {/* Modal de création de devoir - MODIFIÉ */}
+      {/* Modal de création de devoir */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
         <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title>📝 Créer un nouveau devoir</Modal.Title>
@@ -815,7 +1232,6 @@ function DashboardEnseignant() {
               />
             </Form.Group>
 
-            {/* NOUVEAU : Sélection du métier */}
             <Form.Group className="mb-3">
               <Form.Label className="text-primary">Métier concerné</Form.Label>
               <Form.Select
@@ -833,7 +1249,6 @@ function DashboardEnseignant() {
               </Form.Select>
             </Form.Group>
 
-            {/* NOUVEAU : Sélection de l'année */}
             <Form.Group className="mb-3">
               <Form.Label className="text-primary">Année concernée</Form.Label>
               <Form.Select
@@ -940,6 +1355,203 @@ function DashboardEnseignant() {
             <Button variant="outline-primary" onClick={() => setShowModal(false)}>Annuler</Button>
             <Button variant="primary" type="submit" disabled={uploading}>
               {uploading ? 'Création en cours...' : 'Créer le devoir'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Modal de création de cours en ligne */}
+      <Modal show={showCoursModal} onHide={() => setShowCoursModal(false)} centered size="lg">
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>🎥 Organiser un cours en ligne</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSubmitCours}>
+          <Modal.Body>
+            <Alert variant="info" className="mb-3">
+              <strong>💡 Astuce :</strong> Cliquez sur 🔗 pour générer automatiquement un lien de démonstration.
+            </Alert>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-primary">Nom du cours</Form.Label>
+              <Form.Control
+                type="text"
+                name="nom"
+                value={newCours.nom}
+                onChange={handleCoursChange}
+                placeholder="Ex: Cours de Programmation Web"
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-primary">UEA</Form.Label>
+              <Form.Control
+                type="text"
+                name="uea_nom"
+                value={newCours.uea_nom}
+                onChange={handleCoursChange}
+                placeholder="Ex: Développement Web"
+                required
+              />
+            </Form.Group>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-primary">Métier concerné</Form.Label>
+                  <Form.Select
+                    name="metier_id"
+                    value={newCours.metier_id}
+                    onChange={handleCoursChange}
+                    required
+                  >
+                    <option value="">Sélectionnez un métier</option>
+                    {metiers.map(metier => (
+                      <option key={metier.id} value={metier.id}>
+                        {metier.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-primary">Année concernée</Form.Label>
+                  <Form.Select
+                    name="annee"
+                    value={newCours.annee}
+                    onChange={handleCoursChange}
+                    required
+                  >
+                    <option value="">Sélectionnez une année</option>
+                    {annees.map(annee => (
+                      <option key={annee.value} value={annee.value}>
+                        {annee.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-primary">Plateforme</Form.Label>
+              <div className="d-flex flex-wrap gap-2">
+                {plateformes.map(plateforme => (
+                  <div key={plateforme.value} className="d-flex align-items-center me-3">
+                    <Form.Check
+                      type="radio"
+                      label={plateforme.label}
+                      name="plateforme"
+                      value={plateforme.value}
+                      checked={newCours.plateforme === plateforme.value}
+                      onChange={handleCoursChange}
+                      className="me-1"
+                    />
+                    {plateforme.value !== 'autre' && (
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => genererLienReunion(plateforme.value)}
+                        disabled={creatingMeeting}
+                        className="ms-2"
+                      >
+                        {creatingMeeting ? '⏳' : '🔗'}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Form.Text className="text-muted">
+                Cliquez sur 🔗 pour générer automatiquement un lien de démonstration
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-primary">🔗 Lien de la réunion</Form.Label>
+              <Form.Control
+                type="url"
+                name="lien_reunion"
+                value={newCours.lien_reunion}
+                onChange={handleCoursChange}
+                placeholder="https://meet.google.com/xxx-yyyy-zzz"
+                required
+              />
+              <Form.Text className="text-muted">
+                Collez le lien complet de votre réunion (Google Meet, Zoom, Teams...)
+              </Form.Text>
+            </Form.Group>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-primary">Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="date"
+                    value={newCours.date}
+                    onChange={handleCoursChange}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-primary">Heure début</Form.Label>
+                  <Form.Control
+                    type="time"
+                    name="heure_debut"
+                    value={newCours.heure_debut}
+                    onChange={handleCoursChange}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-primary">Heure fin</Form.Label>
+                  <Form.Control
+                    type="time"
+                    name="heure_fin"
+                    value={newCours.heure_fin}
+                    onChange={handleCoursChange}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-primary">Durée</Form.Label>
+              <Form.Select
+                name="duree"
+                value={newCours.duree}
+                onChange={handleCoursChange}
+                required
+              >
+                <option value="4h">4 heures</option>
+                <option value="8h">8 heures (journée complète)</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-primary">Description (optionnel)</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                name="description"
+                value={newCours.description}
+                onChange={handleCoursChange}
+                placeholder="Points à aborder, documents à préparer..."
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-primary" onClick={() => setShowCoursModal(false)}>
+              Annuler
+            </Button>
+            <Button variant="primary" type="submit" disabled={uploading}>
+              {uploading ? '🎥 Création en cours...' : '🎥 Créer le cours en ligne'}
             </Button>
           </Modal.Footer>
         </Form>
