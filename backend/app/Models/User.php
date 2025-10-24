@@ -31,6 +31,14 @@ class User extends Authenticatable implements FilamentUser
         'role',
         'metier_id',
         'annee',
+       'google_access_token',
+    'google_refresh_token',
+    'google_token_expires_at',
+    'google_id',
+    'google_name',
+    'google_email',
+    'google_avatar',            // ← AJOUT
+
     ];
 
     protected $hidden = [
@@ -117,29 +125,57 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsTo(Metier::class);
     }
 
-    // ✅ Filament access control
+    // ✅ Filament access control - SPÉCIFIQUE AU PANEL "binta"
     public function canAccessPanel(Panel $panel): bool
     {
-        // Autoriser uniquement admin et chef de département
-        return in_array($this->role, ['admin', 'chef_departement']);
-    }
-
-    public function canAccessFilament(): bool
-    {
-        \Log::info('🧭 Vérification accès Filament', [
+        \Log::info('=== 🧭 VÉRIFICATION ACCÈS PANEL ===');
+        \Log::info('Panel ID:', ['id' => $panel->getId()]);
+        \Log::info('Utilisateur:', [
+            'id' => $this->id,
             'email' => $this->email,
             'role' => $this->role,
         ]);
-        return in_array($this->role, ['admin', 'chef_departement']);
+
+        // SI C'EST LE PANEL "binta", appliquer nos règles
+        if ($panel->getId() === 'binta') {
+            $role = strtolower(trim($this->role ?? ''));
+            $allowedRoles = ['admin', 'chef_departement'];
+
+            $hasAccess = in_array($role, $allowedRoles);
+
+            \Log::info('Résultat accès panel "binta":', [
+                'role' => $role,
+                'autorisé' => $hasAccess
+            ]);
+
+            return $hasAccess;
+        }
+
+        // Pour les autres panels, refuser par défaut
+        \Log::info('❌ Panel non reconnu, accès refusé');
+        return false;
     }
-<<<<<<< HEAD
+    public function rapports(): HasMany
+    {
+        return $this->hasMany(Rapport::class);
+    }
 
     public function user()
-{
-    return $this->belongsTo(User::class);
-}
+    {
+        return $this->belongsTo(User::class);
+    }
 
+     public function isEnseignant(): bool
+    {
+        return $this->role === 'enseignant';
+    }
 
-=======
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
+    public function isChefDepartement(): bool
+    {
+        return $this->role === 'chef_departement';
+    }
+    public function isResponsableMetier(): bool
+    {
+        return $this->role === 'responsable_metier' || str_contains($this->role ?? '', 'responsable_metier');
+    }
 }

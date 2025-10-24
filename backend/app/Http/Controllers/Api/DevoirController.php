@@ -7,16 +7,20 @@ use App\Models\Soumission;
 use App\Models\Apprenant;
 use App\Models\Uea;
 use App\Models\User;
+use App\Models\Metier;
 use App\Notifications\DevoirCree;
+use App\Notifications\DevoirSoumis;
+use App\Notifications\DevoirCorrige;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Notification;
 
 class DevoirController extends Controller
 {
     /**
-     * ✅ NOUVELLE MÉTHODE : Lister les devoirs de l'enseignant connecté
+     * ✅ CORRIGÉ : Lister les devoirs de l'enseignant connecté
      */
     public function mesDevoirs(Request $request)
     {
@@ -24,16 +28,22 @@ class DevoirController extends Controller
 
         $devoirs = Devoir::with([
             'uea:id,nom,code',
-            'enseignant:id,name'
+            'enseignant:id,name',
+            'metier:id,nom' // ✅ AJOUT : Charger la relation métier
         ])
         ->where('enseignant_id', $enseignantId)
         ->withCount('soumissions')
         ->orderBy('created_at', 'desc')
         ->get();
 
-        // Ajoute le nom de l'UEA directement dans chaque devoir
+        // ✅ CORRECTION : Ajouter l'URL complète du fichier ET les champs manquants
         $devoirs->transform(function ($devoir) {
             $devoir->uea_nom = $devoir->uea->nom ?? 'N/A';
+            // ✅ Retourner l'URL complète du fichier
+            $devoir->fichier_consigne_url = $devoir->fichier_consigne ? Storage::url($devoir->fichier_consigne) : null;
+            // ✅ CORRECTION : Utiliser la relation métier au lieu d'une propriété inexistante
+            $devoir->metier = $devoir->metier ? $devoir->metier->nom : 'Non spécifié';
+            $devoir->annee = $devoir->annee ?? '?';
             return $devoir;
         });
 
@@ -48,9 +58,8 @@ class DevoirController extends Controller
         $user = $request->user();
 
         // Récupérer les devoirs selon le métier et l'année de l'apprenant
-        $devoirs = Devoir::whereHas('uea.metiers', function($query) use ($user) {
-                $query->where('metiers.id', $user->metier_id);
-            })
+        $devoirs = Devoir::where('metier_id', $user->metier_id)
+            ->where('annee', $user->annee)
             ->with(['uea:id,nom', 'enseignant:id,name'])
             ->withCount(['soumissions' => function($query) use ($user) {
                 $query->where('apprenant_id', $user->id);
@@ -71,7 +80,8 @@ class DevoirController extends Controller
                 'enseignant_nom' => $devoir->enseignant->name ?? 'N/A',
                 'soumissions_count' => $devoir->soumissions_count,
                 'created_at' => $devoir->created_at,
-                'updated_at' => $devoir->updated_at
+                'updated_at' => $devoir->updated_at,
+                'peut_soumettre' => now()->lte($devoir->date_limite) // ✅ Si la date limite n'est pas dépassée
             ];
         });
 
@@ -113,10 +123,18 @@ class DevoirController extends Controller
         ]);
 
         $user = $request->user();
-        $devoir = Devoir::findOrFail($devoirId);
+        $devoir = Devoir::with('enseignant')->findOrFail($devoirId);
+
+        // Vérifier si l'apprenant a le droit de soumettre ce devoir
+        if ($devoir->metier_id !== $user->metier_id || $devoir->annee !== $user->annee) {
+            return response()->json([
+                'error' => 'Vous n\'êtes pas autorisé à soumettre ce devoir'
+            ], 403);
+        }
 
         // Vérifier si la date limite est dépassée
-        if (now()->gt($devoir->date_limite)) {
+        $retard = now()->gt($devoir->date_limite);
+        if ($retard) {
             return response()->json([
                 'error' => 'La date limite de soumission est dépassée'
             ], 400);
@@ -143,8 +161,17 @@ class DevoirController extends Controller
             ]
         );
 
+        // 🔔 Notification à l'enseignant
+        if ($devoir->enseignant) {
+            try {
+                $devoir->enseignant->notify(new DevoirSoumis($soumission));
+            } catch (\Exception $e) {
+                Log::warning("Échec d'envoi de notification à l'enseignant", ['error' => $e->getMessage()]);
+            }
+        }
+
         return response()->json([
-            'message' => 'Devoir soumis avec succès',
+            'message' => 'Devoir soumis avec succès ! L\'enseignant a été notifié.',
             'soumission' => $soumission
         ]);
     }
@@ -155,10 +182,11 @@ class DevoirController extends Controller
     public function envoyerFeedback(Request $request, $soumissionId)
     {
         $request->validate([
-            'feedback' => 'required|string|max:1000'
+            'feedback' => 'required|string|max:1000',
+            'note' => 'required|numeric|between:0,20'
         ]);
 
-        $soumission = Soumission::with('devoir')->findOrFail($soumissionId);
+        $soumission = Soumission::with(['devoir', 'apprenant'])->findOrFail($soumissionId);
 
         // Vérifier que l'enseignant est bien celui qui a créé le devoir
         if ($soumission->devoir->enseignant_id !== $request->user()->id) {
@@ -169,39 +197,28 @@ class DevoirController extends Controller
 
         $soumission->update([
             'feedback' => $request->feedback,
-            'date_correction' => now()
+            'note' => $request->note,
+            'date_correction' => now(),
+            'statut' => 'corrigé'
         ]);
 
+        // 🔔 Notification à l'apprenant
+        if ($soumission->apprenant) {
+            try {
+                $soumission->apprenant->notify(new DevoirCorrige($soumission));
+            } catch (\Exception $e) {
+                Log::warning("Échec d'envoi de notification à l'apprenant", ['error' => $e->getMessage()]);
+            }
+        }
+
         return response()->json([
-            'message' => 'Feedback envoyé avec succès',
+            'message' => 'Devoir corrigé et feedback envoyé ! L\'apprenant a été notifié.',
             'soumission' => $soumission
         ]);
     }
 
     /**
-     * Lister tous les devoirs d'une UEA (par ID ou nom)
-     */
-    public function index($ueaIdOrNom)
-    {
-        $uea = Uea::where('id', $ueaIdOrNom)
-                   ->orWhere('nom', 'like', '%' . $ueaIdOrNom . '%')
-                   ->first();
-
-        if (!$uea) {
-            return response()->json(['message' => 'UEA non trouvée'], 404);
-        }
-
-        $devoirs = Devoir::with([
-            'enseignant:id,name',
-            'soumissions.apprenant:id,prenom,nom,matricule',
-            'soumissions' => fn($q) => $q->where('apprenant_id', request()->user()?->apprenant?->id)
-        ])->where('uea_id', $uea->id)->get();
-
-        return response()->json($devoirs);
-    }
-
-    /**
-     * Créer un nouveau devoir (par l'enseignant)
+     * Créer un nouveau devoir (par l'enseignant) - CORRIGÉ
      */
     public function store(Request $request)
     {
@@ -212,7 +229,9 @@ class DevoirController extends Controller
             'date_limite' => 'required|date',
             'fichier_sujet' => 'nullable|file|max:51200|mimes:pdf,zip',
             'coefficient' => 'nullable|integer|min:1|max:10',
-            'type_sujet' => 'required|in:texte,fichier'
+            'type_sujet' => 'required|in:texte,fichier',
+            'metier' => 'required|string|max:255',
+            'annee' => 'required|string|max:255'
         ]);
 
         // ✅ Trouve ou crée l'UEA
@@ -221,9 +240,23 @@ class DevoirController extends Controller
             [
                 'code' => strtoupper(substr($validated['uea_nom'], 0, 3)) . rand(100, 999),
                 'description' => $validated['description'] ?? 'Créée via devoir',
-                'annee' => 1
+                'annee' => $validated['annee']
             ]
         );
+
+        // ✅ Trouve le métier
+        $metier = Metier::where('nom', $validated['metier'])->first();
+
+        if (!$metier) {
+            return response()->json([
+                'message' => 'Métier non trouvé'
+            ], 404);
+        }
+
+        // ✅ Associe l'UEA au métier si pas déjà fait
+        if (!$uea->metiers()->where('metier_id', $metier->id)->exists()) {
+            $uea->metiers()->attach($metier->id);
+        }
 
         // ✅ Prépare les données du devoir
         $data = [
@@ -233,6 +266,8 @@ class DevoirController extends Controller
             'enseignant_id' => $request->user()->id,
             'date_limite' => $validated['date_limite'],
             'coefficient' => $validated['coefficient'] ?? 1,
+            'metier_id' => $metier->id,
+            'annee' => $validated['annee']
         ];
 
         // ✅ Stocke le fichier sujet s'il existe et si type est fichier
@@ -244,108 +279,28 @@ class DevoirController extends Controller
 
         // ✅ Crée le devoir
         $devoir = Devoir::create($data);
-        $devoir->load('uea', 'enseignant');
+        $devoir->load('uea', 'enseignant', 'metier');
 
-        // 🔔 Envoie une notification aux apprenants du métier
-        $metier = $uea->metiers->first();
-        if ($metier) {
-            $apprenants = User::where('metier_id', $metier->id)
-                            ->where('role', 'apprenant')
-                            ->get();
-            foreach ($apprenants as $apprenant) {
-                try {
-                    $apprenant->notify(new DevoirCree($devoir));
-                } catch (\Exception $e) {
-                    Log::warning("Échec d'envoi de notification à {$apprenant->email}", ['error' => $e->getMessage()]);
-                }
+        // 🔔 Envoie une notification aux apprenants concernés
+        $apprenants = User::where('metier_id', $metier->id)
+                        ->where('annee', $validated['annee'])
+                        ->where('role', 'apprenant')
+                        ->get();
+
+        $notificationCount = 0;
+        foreach ($apprenants as $apprenant) {
+            try {
+                $apprenant->notify(new DevoirCree($devoir));
+                $notificationCount++;
+            } catch (\Exception $e) {
+                Log::warning("Échec d'envoi de notification à {$apprenant->email}", ['error' => $e->getMessage()]);
             }
-        } else {
-            Log::info("Aucun métier lié à l'UEA ID: {$uea->id}");
         }
 
         return response()->json([
-            'message' => 'Devoir créé avec succès',
+            'message' => "Devoir créé avec succès pour {$validated['metier']} - Année {$validated['annee']} ! {$notificationCount} apprenant(s) notifié(s).",
             'devoir' => $devoir
         ], 201);
-    }
-
-    /**
-     * Soumettre un devoir (par l'apprenant) - Ancienne méthode conservée
-     */
-    public function soumettre(Request $request, $devoirId)
-    {
-        $request->validate([
-            'fichier_rendu' => 'required|file|max:51200',
-            'commentaire' => 'nullable|string|max:500'
-        ]);
-
-        $devoir = Devoir::findOrFail($devoirId);
-        $apprenant = $request->user();
-
-        $retard = now()->gt($devoir->date_limite);
-
-        $soumission = Soumission::updateOrCreate(
-            [
-                'devoir_id' => $devoirId,
-                'apprenant_id' => $apprenant->id
-            ],
-            [
-                'fichier_rendu' => $request->file('fichier_rendu')->store('devoirs/rendus', 'public'),
-                'commentaire' => $request->commentaire,
-                'retard' => $retard,
-                'statut' => 'soumis'
-            ]
-        );
-
-        // 🔔 Notification à l'enseignant
-        if ($devoir->enseignant) {
-            try {
-                $devoir->enseignant->notify(new \App\Notifications\DevoirSoumis($soumission));
-            } catch (\Exception $e) {
-                Log::warning("Échec d'envoi de notification à l'enseignant", ['error' => $e->getMessage()]);
-            }
-        }
-
-        return response()->json([
-            'message' => $retard ? 'Devoir soumis en retard' : 'Devoir soumis à temps',
-            'soumission' => $soumission->load('apprenant')
-        ], 201);
-    }
-
-    /**
-     * Corriger un devoir (par l'enseignant)
-     */
-    public function corriger(Request $request, $soumissionId)
-    {
-        $request->validate([
-            'note' => 'required|integer|between:0,20',
-            'feedback' => 'required|string',
-            'fichier_corrige' => 'nullable|file|max:2048'
-        ]);
-
-        $soumission = Soumission::with('devoir', 'apprenant')->findOrFail($soumissionId);
-
-        $data = $request->only(['note', 'feedback']);
-
-        if ($request->hasFile('fichier_corrige')) {
-            $data['fichier_corrige'] = $request->file('fichier_corrige')->store('devoirs/corriges', 'public');
-        }
-
-        $soumission->update($data);
-
-        // 🔔 Notification à l'apprenant
-        if ($soumission->apprenant) {
-            try {
-                $soumission->apprenant->notify(new \App\Notifications\DevoirCorrige($soumission));
-            } catch (\Exception $e) {
-                Log::warning("Échec d'envoi de notification à l'apprenant", ['error' => $e->getMessage()]);
-            }
-        }
-
-        return response()->json([
-            'message' => 'Devoir corrigé et noté',
-            'soumission' => $soumission
-        ]);
     }
 
     /**
@@ -354,7 +309,7 @@ class DevoirController extends Controller
     public function getSoumissions(Request $request, $devoirId)
     {
         $devoir = Devoir::with([
-            'soumissions.apprenant:id,name',
+            'soumissions.apprenant:id,name,email',
             'soumissions' => fn($q) => $q->orderBy('created_at', 'desc')
         ])->findOrFail($devoirId);
 
@@ -368,11 +323,14 @@ class DevoirController extends Controller
             return [
                 'id' => $soumission->id,
                 'apprenant_nom' => $soumission->apprenant->name ?? 'N/A',
+                'apprenant_email' => $soumission->apprenant->email ?? 'N/A',
                 'fichier' => $soumission->fichier_rendu ? Storage::url($soumission->fichier_rendu) : null,
                 'feedback' => $soumission->feedback,
                 'note' => $soumission->note,
                 'retard' => $soumission->retard,
-                'created_at' => $soumission->created_at
+                'statut' => $soumission->statut,
+                'date_soumission' => $soumission->created_at,
+                'date_correction' => $soumission->date_correction
             ];
         });
 

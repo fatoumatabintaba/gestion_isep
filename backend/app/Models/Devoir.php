@@ -19,6 +19,8 @@ class Devoir extends Model
         'coefficient',
         'fichier_consigne',
         'ouverte',
+       'metier_id',
+       'annee',
         'seance_id'
     ];
 
@@ -54,4 +56,9 @@ class Devoir extends Model
     {
         return $this->soumissions()->count();
     }
+     public function metier()
+    {
+        return $this->belongsTo(\App\Models\Metier::class, 'metier_id');
+    }
+    
 }

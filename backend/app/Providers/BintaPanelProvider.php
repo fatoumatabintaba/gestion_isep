@@ -84,7 +84,7 @@ class BintaPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-                OnlyBintaAccess::class,
+                // OnlyBintaAccess::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

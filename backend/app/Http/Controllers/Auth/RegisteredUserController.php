@@ -140,14 +140,19 @@ class RegisteredUserController extends Controller
     /**
      * Déconnexion
      */
+    // public function logout(Request $request)
+    // {
+    //     $user = $request->user();
+    //     if ($user) {
+    //         $user->currentAccessToken()->delete();
+    //     }
+    //     return response()->json(['message' => 'Déconnecté']);
+    // }
     public function logout(Request $request)
-    {
-        $user = $request->user();
-        if ($user) {
-            $user->currentAccessToken()->delete();
-        }
-        return response()->json(['message' => 'Déconnecté']);
-    }
+{
+    $request->user()->currentAccessToken()->delete();
+    return response()->json(['message' => 'Déconnecté avec succès']);
+}
 
     /**
      * Valider un apprenant

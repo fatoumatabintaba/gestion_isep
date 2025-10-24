@@ -14,6 +14,9 @@ use App\Http\Controllers\Api\AbsenceController;
 use App\Http\Controllers\Api\MetierController;
 use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\Api\ApprenantController;
+use App\Http\Controllers\Auth\GoogleOAuthController;
+use App\Http\Controllers\Api\VideoConferenceController;
+use App\Http\Controllers\RapportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +33,12 @@ Route::post('/register', [RegisteredUserController::class, 'store']);
 // 🔐 Connexion
 Route::post('/login', [RegisteredUserController::class, 'login']);
 
+// ========================
+// 🔐 ROUTES OAUTH (Google & Zoom)
+// ========================
+Route::get('/auth/google', [GoogleOAuthController::class, 'redirect'])->name('google.redirect');
+Route::get('/auth/google/callback', [GoogleOAuthController::class, 'callback'])->name('google.callback');
+
 // 🔐 Déconnexion
 Route::post('/logout', [RegisteredUserController::class, 'logout'])
     ->middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'auth:sanctum']);
@@ -44,17 +53,67 @@ Route::middleware([
     Route::get('/user', fn(Request $request) => $request->user());
 
     // ========================
+    // 📊 ROUTES RAPPORTS (Corrigées et déplacées ici)
+    // ========================
+    Route::middleware('role:responsable_metier,chef_departement,admin')->group(function () {
+
+        // 🔹 ROUTES DE BASE POUR LES RAPPORTS (REST API)
+        Route::apiResource('rapports', RapportController::class);
+
+        // 🔹 ROUTES SPÉCIFIQUES POUR LE SYSTÈME DE RAPPORTS
+        Route::prefix('rapports')->group(function () {
+            // Route pour envoyer un rapport au chef de département
+            Route::post('/chef-departement', [RapportController::class, 'envoyerAuChefDepartement']);
+
+            // Route pour récupérer les rapports reçus (pour le chef de département)
+            Route::get('/chef-departement', [RapportController::class, 'getRapportsPourChefDepartement']);
+
+            // Route pour valider un rapport
+            Route::put('/{id}/valider', [RapportController::class, 'validerRapport']);
+
+            // Route pour rejeter un rapport
+            Route::put('/{id}/rejeter', [RapportController::class, 'rejeterRapport']);
+
+            // Route pour valider tous les rapports en attente
+            Route::put('/valider-tous', [RapportController::class, 'validerTousRapports']);
+
+            // Route pour envoyer à l'administration
+            Route::post('/administration', [RapportController::class, 'envoyerAAdministration']);
+        });
+    });
+
+    // 🔥 CORRECTION AJOUTÉE : Routes justificatifs accessibles à tous les utilisateurs authentifiés
+    Route::prefix('justificatifs')->group(function () {
+        Route::get('/en-attente', [JustificatifController::class, 'justificatifsEnAttente']);
+        Route::get('/{id}', [JustificatifController::class, 'show']);
+        Route::get('/{id}/download', [JustificatifController::class, 'download']);
+    });
+
+    // ========================
+    // 🎥 ROUTES VIDÉOCONFÉRENCE
+    // ========================
+    Route::middleware('role:enseignant,admin,chef_departement')->group(function () {
+        Route::post('/meetings/google-meet', [VideoConferenceController::class, 'creerGoogleMeet']);
+        Route::post('/meetings/demo', [VideoConferenceController::class, 'genererLienDemo']);
+    });
+
+    // ========================
     // 👨‍🎓 ROUTES APPRENANT
     // ========================
     Route::middleware('role:apprenant')->group(function () {
         Route::get('/dashboard/apprenant/{metierSlug}/annee-{annee}', [DashboardController::class, 'apprenant']);
 
+        // ✅ CORRECTION: ROUTES UNIFIÉES POUR LE FRONTEND
+        Route::get('/apprenant/seances', [SeanceController::class, 'mesSeances']);
+        Route::get('/apprenant/justificatifs/mes-justificatifs', [JustificatifController::class, 'mesJustificatifs']);
+
+        // ✅ CORRECTION: Utiliser VideoConferenceController pour les cours en ligne
+        Route::get('/apprenant/cours-en-ligne', [VideoConferenceController::class, 'mesCoursEnLigne']);
+
         // 📁 JUSTIFICATIFS - Apprenant
         Route::prefix('justificatifs')->group(function () {
             Route::post('/', [JustificatifController::class, 'store']);
             Route::get('/mes-justificatifs', [JustificatifController::class, 'mesJustificatifs']);
-            Route::get('/{id}', [JustificatifController::class, 'show']);
-            Route::get('/{id}/download', [JustificatifController::class, 'download']);
             Route::delete('/{id}', [JustificatifController::class, 'destroy']);
         });
 
@@ -63,24 +122,34 @@ Route::middleware([
         Route::get('/devoirs/{devoirId}/ma-soumission', [DevoirController::class, 'maSoumission']);
         Route::post('/devoirs/{devoirId}/soumission', [DevoirController::class, 'soumettreDevoir']);
 
-        // 📅 SÉANCES - Apprenant
-        Route::get('/apprenant/seances', [SeanceController::class, 'mesSeances']);
+        // ✅ AJOUT: ROUTES POUR LES ABSENCES DES APPRENANTS
+        Route::get('/apprenant/absences', [ApprenantController::class, 'mesAbsences']);
+        Route::post('/apprenant/absences/{absence}/justifier', [ApprenantController::class, 'deposerJustificatif']);
     });
 
     // ========================
     // 👨‍🏫 ROUTES ENSEIGNANT
     // ========================
-    Route::middleware('role:enseignant,admin')->group(function () {
+    Route::middleware('role:enseignant,admin,responsable_metier')->group(function () {
         Route::get('/enseignant/devoirs', [DevoirController::class, 'mesDevoirs']);
         Route::post('/devoirs', [DevoirController::class, 'store']);
         Route::get('/devoirs/{devoirId}/soumissions', [DevoirController::class, 'getSoumissions']);
+
+        // ✅ CORRECTION: ROUTES MANQUANTES POUR LA CORRECTION DES DEVOIRS
+        Route::post('/soumissions/{soumissionId}/feedback', [DevoirController::class, 'envoyerFeedback']);
+        Route::post('/soumissions/{soumissionId}/corriger', [DevoirController::class, 'envoyerFeedback']); // ✅ ALIAS
+
         Route::get('/dashboard/enseignant', [DashboardController::class, 'enseignant']);
         Route::post('/seances', [SeanceController::class, 'store']);
         Route::post('/presences', [PresenceController::class, 'store']);
         Route::get('/seances/{seance}/apprenants', [PresenceController::class, 'getApprenantsForSeance']);
         Route::post('/seances/{seance}/presences/multiple', [PresenceController::class, 'storeMultiple']);
-        Route::post('/soumissions/{soumissionId}/corriger', [DevoirController::class, 'corriger']);
 
+        // ✅ AJOUT: Route pour notifier les absences
+        Route::post('/seances/{seance}/notifier-absences', [SeanceController::class, 'notifierAbsences']);
+
+        // ✅ AJOUT: Route pour voir seulement le STATUT des justificatifs (pas les fichiers)
+        Route::get('/enseignant/seances/{seanceId}/statut-absences', [PresenceController::class, 'statutAbsencesPourEnseignant']);
     });
 
     // ========================
@@ -88,14 +157,14 @@ Route::middleware([
     // ========================
     Route::middleware('role:coordinateur,admin,chef_departement,assistant,responsable_metier')->group(function () {
 
-        // 📁 JUSTIFICATIFS - Coordinateur/Admin/Responsable Métier
+        // 📁 JUSTIFICATIFS - Coordinateur/Admin/Responsable Métier (ACCÈS COMPLET)
         Route::prefix('justificatifs')->group(function () {
             Route::get('/tous', [JustificatifController::class, 'tousJustificatifs']);
-            Route::get('/en-attente', [JustificatifController::class, 'justificatifsEnAttente']);
             Route::get('/seance/{seanceId}', [JustificatifController::class, 'index']);
             Route::put('/{id}/statut', [JustificatifController::class, 'updateStatut']);
-            Route::get('/{id}', [JustificatifController::class, 'show']);
-            Route::get('/{id}/download', [JustificatifController::class, 'download']);
+
+            // ✅ AJOUT: Route pour voir les détails complets des absences avec justificatifs
+            Route::get('/seance/{seanceId}/absences-detail', [JustificatifController::class, 'absencesAvecJustificatifs']);
         });
 
         // Pour le coordinateur uniquement
@@ -104,11 +173,11 @@ Route::middleware([
             Route::get('/coordinateur/devoirs', [DevoirController::class, 'enAttente']);
             Route::get('/absences', [PresenceController::class, 'frequentes']);
             Route::get('/presences', [PresenceController::class, 'indexForCoordinateur']);
-<<<<<<< HEAD
             Route::get('/coordinateur/presences', [PresenceController::class, 'indexForCoordinateur']);
-=======
->>>>>>> d1afd34fa47113daf1349c5a2f554532664d685f
             Route::get('/seances', [SeanceController::class, 'indexForCoordinateur']);
+
+            // ✅ AJOUT: Route pour les statistiques du dashboard coordinateur
+            Route::get('/presences/stats-dashboard', [PresenceController::class, 'statsDashboard']);
         });
 
         // Pour le responsable métier uniquement
@@ -121,6 +190,18 @@ Route::middleware([
             // 📋 JUSTIFICATIFS SPÉCIFIQUES AU MÉTIER (avec paramètre année optionnel)
             Route::get('/metier/{metierId}/justificatifs', [JustificatifController::class, 'justificatifsParMetier']);
             Route::get('/metier/{metierId}/justificatifs/en-attente', [JustificatifController::class, 'justificatifsEnAttenteParMetier']);
+            Route::put('/justificatifs/{id}/valider', [JustificatifController::class, 'valider']);
+            Route::put('/justificatifs/{id}/rejeter', [JustificatifController::class, 'rejeter']);
+
+            // 🆕 ROUTES EXISTANTES POUR LE DASHBOARD
+            Route::get('/apprenants/metier/{metierId}', [ApprenantController::class, 'parMetier']);
+            Route::get('/uea/metier/{metierId}', [UeaController::class, 'parMetier']);
+            Route::get('/stats/metier', [DashboardController::class, 'statsMetier']);
+
+            // ✅ NOUVELLES ROUTES AJOUTÉES (3 routes)
+            Route::get('/dashboard/uea/metier/{metierId}', [DashboardController::class, 'ueaParMetier']);
+            Route::get('/dashboard/apprenants/metier/{metierId}', [DashboardController::class, 'apprenantsParMetier']);
+            Route::get('/dashboard/justificatifs/en-attente', [DashboardController::class, 'justificatifsEnAttente']);
         });
     });
 
@@ -129,6 +210,13 @@ Route::middleware([
     // ========================
     Route::middleware('role:chef_departement')->group(function () {
         Route::get('/dashboard/chef', [DashboardController::class, 'chef']);
+    });
+
+    // ========================
+    // ✅ ROUTE APPRENANTS (Multi-rôles) - AJOUT ICI
+    // ========================
+    Route::middleware('role:enseignant,admin,chef_departement,coordinateur,responsable_metier')->group(function () {
+        Route::get('/apprenants', [ApprenantController::class, 'index']);
     });
 
     // ========================
@@ -158,124 +246,198 @@ Route::middleware('auth:sanctum')->get('/seances/metier', [SeanceController::cla
 // 🧪 ROUTES DE TEST (Local seulement)
 // ========================
 if (app()->environment('local')) {
-    Route::get('/test-mail', function () {
-        \Illuminate\Support\Facades\Mail::raw('Test envoyé !', function ($msg) {
-            $msg->to('test@isep.sn')->subject('Test');
-        });
-        return response()->json(['message' => 'Email envoyé']);
+    // Test des routes rapports
+    Route::get('/test-rapports', function () {
+        return response()->json([
+            'message' => 'API Rapports est fonctionnelle!',
+            'routes_disponibles' => [
+                'GET /api/rapports' => 'Liste tous les rapports',
+                'POST /api/rapports' => 'Créer un rapport',
+                'GET /api/rapports/{id}' => 'Afficher un rapport',
+                'PUT /api/rapports/{id}' => 'Modifier un rapport',
+                'DELETE /api/rapports/{id}' => 'Supprimer un rapport',
+                'POST /api/rapports/chef-departement' => 'Envoyer au chef de département',
+                'GET /api/rapports/chef-departement' => 'Récupérer rapports pour chef département',
+                'PUT /api/rapports/{id}/valider' => 'Valider un rapport',
+                'PUT /api/rapports/{id}/rejeter' => 'Rejeter un rapport',
+                'PUT /api/rapports/valider-tous' => 'Valider tous les rapports',
+                'POST /api/rapports/administration' => 'Envoyer à l\'administration'
+            ]
+        ]);
     });
 
-    // ✅ Route de test pour l'authentification
+    // Test d'authentification
     Route::get('/test-auth', function (Request $request) {
-        $user = $request->user();
+        return response()->json([
+            'authenticated' => auth()->check(),
+            'user' => auth()->user(),
+            'roles' => auth()->check() ? auth()->user()->getRoleNames() : []
+        ]);
+    })->middleware('auth:sanctum');
+
+ // REMPLACEZ les anciennes routes par :
+Route::post('/rapports/chef-departement', [RapportChefDepartementController::class, 'envoyerRapport']);
+Route::get('/rapports/chef-departement', [RapportChefDepartementController::class, 'getRapports']);
+
+// Route TEMPORAIRE pour tester l'envoi de rapport
+Route::post('/test/rapport-envoi', function(Request $request) {
+    \Illuminate\Support\Facades\Log::info('=== TEST ENVOI RAPPORT ===');
+    \Illuminate\Support\Facades\Log::info('Données reçues:', $request->all());
+
+    try {
+        $validated = $request->validate([
+            'titre' => 'required|string',
+            'contenu' => 'required|string',
+            'metier_id' => 'required',
+            'annee' => 'required|string',
+            'uea_nom' => 'required|string'
+        ]);
+
+        $rapport = \App\Models\Rapport::create([
+            'user_id' => \Illuminate\Support\Facades\Auth::id(),
+            'metier' => $validated['titre'],
+            'code_metier' => 'CD-' . time(),
+            'statistiques' => $validated,
+            'periode' => 'Test ' . $validated['annee'],
+            'justificatifs_traites' => 0,
+            'statut' => 'valide',
+            'date_soumission' => now(),
+        ]);
 
         return response()->json([
-            'authenticated' => !!$user,
-            'user' => $user ? [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'metier_id' => $user->metier_id
-            ] : null,
-            'message' => $user ? 'Authentifié avec succès' : 'Non authentifié'
-        ]);
-    })->middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'auth:sanctum']);
-
-    // 🚨 TEMPORAIRE : Route sans restriction de rôle pour déboguer
-    Route::get('/apprenants-debug', function (Request $request) {
-        $user = $request->user();
-
-        \Log::info('🔍 Route debug /apprenants-debug appelée', [
-            'user' => $user ? [
-                'id' => $user->id,
-                'name' => $user->name,
-                'role' => $user->role,
-                'email' => $user->email
-            ] : null,
-            'authenticated' => !!$user
+            'success' => true,
+            'message' => 'Rapport créé avec succès!',
+            'rapport_id' => $rapport->id
         ]);
 
-        $metierId = $request->query('metier_id');
-        $annee = $request->query('annee');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
 
-        if (!$metierId) {
-            return response()->json(['error' => 'Le paramètre metier_id est requis'], 400);
-        }
-
-        $query = \App\Models\User::where('role', 'apprenant')
-                    ->where('metier_id', $metierId);
-
-        if ($annee && $annee !== '') {
-            $query->where('annee', $annee);
-        }
-
-        $apprenants = $query->get(['id', 'name', 'prenom', 'email', 'annee', 'metier_id']);
+// Route TEMPORAIRE pour récupérer les rapports
+Route::get('/test/rapports-chef', function() {
+    try {
+        $rapports = \App\Models\Rapport::with('user:id,name,email')
+            ->where('code_metier', 'like', 'CD-%')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($rapport) {
+                return [
+                    'id' => $rapport->id,
+                    'metier' => $rapport->metier,
+                    'code_metier' => $rapport->code_metier,
+                    'coordinateur' => $rapport->user->name ?? 'Utilisateur inconnu',
+                    'date_soumission' => $rapport->date_soumission?->format('d/m/Y') ?? $rapport->created_at->format('d/m/Y'),
+                    'periode' => $rapport->periode,
+                    'statistiques' => is_array($rapport->statistiques) ? $rapport->statistiques : [],
+                    'justificatifs_traites' => $rapport->justificatifs_traites,
+                    'statut' => $rapport->statut
+                ];
+            });
 
         return response()->json([
-            'apprenants' => $apprenants,
-            'count' => $apprenants->count(),
-            'debug' => [
-                'user_authenticated' => !!$user,
-                'user_role' => $user?->role,
-                'user_id' => $user?->id
-            ]
+            'success' => true,
+            'data' => $rapports
         ]);
-    })->middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'auth:sanctum']);
 
-    // 🧪 Test du middleware de rôle
-    Route::get('/test-role', function (Request $request) {
+    } catch (\Exception $e) {
         return response()->json([
-            'message' => 'Middleware role fonctionne !',
-            'user' => $request->user()->only('id', 'name', 'role')
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+
+// ROUTES DE TEST TEMPORAIRES
+Route::post('/test/rapport-envoi', function(Request $request) {
+    \Log::info('=== TEST ENVOI RAPPORT RESPONSABLE METIER ===');
+    \Log::info('Headers:', $request->headers->all());
+    \Log::info('User:', Auth::user() ? ['id' => Auth::user()->id, 'name' => Auth::user()->name] : 'Non auth');
+    \Log::info('Données reçues:', $request->all());
+
+    try {
+        $validated = $request->validate([
+            'titre' => 'required|string',
+            'contenu' => 'required|string',
+            'metier_id' => 'required',
+            'annee' => 'required|string',
+            'uea_nom' => 'required|string'
         ]);
-    })->middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', 'role:enseignant']);
 
-    // ✅ CORRIGÉ : Route /apprenants accessible aux enseignants ET admins
-    Route::get('/apprenants', function (Request $request) {
-        $user = $request->user();
-
-        \Log::info('🔓 Route /apprenants appelée', [
-            'user_id' => $user->id,
-            'user_role' => $user->role,
-            'user_email' => $user->email,
-            'metier_id' => $request->query('metier_id')
+        // Création simple du rapport
+        $rapport = \App\Models\Rapport::create([
+            'user_id' => Auth::id(),
+            'metier' => $validated['titre'],
+            'code_metier' => 'CD-' . time(),
+            'statistiques' => $validated,
+            'periode' => 'Test ' . $validated['annee'],
+            'justificatifs_traites' => 0,
+            'statut' => 'valide',
+            'date_soumission' => now(),
         ]);
 
-        // ✅ CORRECTION : Autoriser admin + enseignant + autres rôles
-        if (!in_array($user->role, ['enseignant', 'admin', 'chef_departement', 'coordinateur'])) {
-            return response()->json([
-                'error' => 'Accès réservé aux enseignants et administrateurs',
-                'your_role' => $user->role,
-                'required_role' => 'enseignant, admin, chef_departement ou coordinateur'
-            ], 403);
-        }
-
-        $metierId = $request->query('metier_id');
-        $annee = $request->query('annee');
-
-        if (!$metierId) {
-            return response()->json(['error' => 'Le paramètre metier_id est requis'], 400);
-        }
-
-        $query = \App\Models\User::where('role', 'apprenant')
-                    ->where('metier_id', $metierId);
-
-        if ($annee && $annee !== '') {
-            $query->where('annee', $annee);
-        }
-
-        $apprenants = $query->get(['id', 'name', 'prenom', 'email', 'annee', 'metier_id']);
+        \Log::info('✅ Rapport test créé:', ['id' => $rapport->id]);
 
         return response()->json([
-            'apprenants' => $apprenants,
-            'count' => $apprenants->count(),
-            'debug' => [
-                'user_role' => $user->role,
-                'user_id' => $user->id
-            ]
+            'success' => true,
+            'message' => 'Rapport test créé avec succès!',
+            'rapport_id' => $rapport->id,
+            'test' => true
         ]);
-    })->middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'auth:sanctum']);
 
-    Route::get('/presences-for-coordinateur', [PresenceController::class, 'indexForCoordinateur']);
+    } catch (\Exception $e) {
+        \Log::error('❌ Erreur route test:', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur test: ' . $e->getMessage(),
+            'test' => true
+        ], 500);
+    }
+});
+
+Route::get('/test/rapports-chef', function() {
+    try {
+        $rapports = \App\Models\Rapport::with('user:id,name,email')
+            ->where('code_metier', 'like', 'CD-%')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($rapport) {
+                return [
+                    'id' => $rapport->id,
+                    'titre' => $rapport->metier,
+                    'contenu' => is_array($rapport->statistiques) ? ($rapport->statistiques['contenu'] ?? '') : '',
+                    'uea_nom' => is_array($rapport->statistiques) ? ($rapport->statistiques['uea_nom'] ?? '') : '',
+                    'annee' => is_array($rapport->statistiques) ? ($rapport->statistiques['annee'] ?? '') : '',
+                    'metier_id' => is_array($rapport->statistiques) ? ($rapport->statistiques['metier_id'] ?? '') : '',
+                    'coordinateur' => $rapport->user->name ?? 'Utilisateur inconnu',
+                    'statut' => $rapport->statut,
+                    'date_soumission' => $rapport->date_soumission?->format('d/m/Y H:i') ?? $rapport->created_at->format('d/m/Y H:i'),
+                    'periode' => $rapport->periode,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $rapports,
+            'test' => true
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Erreur récupération rapports test: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'error' => 'Erreur test: ' . $e->getMessage(),
+            'test' => true
+        ], 500);
+    }
+});
 }
